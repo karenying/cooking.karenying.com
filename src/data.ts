@@ -5,6 +5,7 @@ export type Recipe = {
   description: string;
   category: string;
   cuisine: string;
+  cuisineInferred?: boolean;
   image: string;
   time: number;
   servings: string;
@@ -12,12 +13,24 @@ export type Recipe = {
   ingredients: IngredientGroup[];
   steps: { title: string; text: string }[];
   note: string;
+  /** Primary recipe URL or source-sheet tab; absent on older local recipes. */
+  originalSource?: string;
 };
+export type MealPart = { type: "text"; text: string } | { type: "recipe"; id: string };
 export type Meal = {
   id: string;
   date: string;
   type: "Lunch" | "Dinner";
   dishes: string[];
+  note: string;
+  setting?: "home" | "out" | "figma";
+  content?: MealPart[];
+};
+export type AwayEvent = {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
   note: string;
 };
 const photo = (id: string) =>
@@ -312,7 +325,7 @@ export const recipes: Recipe[] = [
   },
 ];
 
-export const initialMeals: Meal[] = [
+const legacySampleMeals: Meal[] = [
   {
     id: "m1",
     date: "2026-11-01",
@@ -454,6 +467,47 @@ export const initialMeals: Meal[] = [
     note: "Thanksgiving with family",
   },
 ];
+
+// These are illustrative examples, not an import or a classification of saved user data.
+const sampleOutMeals = new Set(["m5", "m16"]);
+export const initialMeals: Meal[] = legacySampleMeals.filter((meal) => meal.id !== "m19").map((meal) => ({
+  ...meal,
+  setting: sampleOutMeals.has(meal.id) ? "out" : ["m3", "m12"].includes(meal.id) ? "figma" : "home",
+}));
+export const initialAwayEvents: AwayEvent[] = [{
+  id: "sample-away-weekend",
+  title: "Weekend away",
+  startDate: "2026-11-21",
+  endDate: "2026-11-23",
+  note: "A long weekend in the mountains.",
+}];
+
+// Upgrade only unchanged old examples. Preserve added, edited and classified meals,
+// deleted examples, and any existing event with the sample ID.
+export function upgradeSampleCalendar(meals: Meal[], awayEvents: AwayEvent[]) {
+  let moveLegacyAway = false;
+  const nextMeals = meals.flatMap((meal) => {
+    const old = legacySampleMeals.find((sample) => sample.id === meal.id);
+    if (!old || meal.setting || meal.date !== old.date || meal.type !== old.type || meal.note !== old.note
+      || meal.dishes.length !== old.dishes.length || meal.dishes.some((id, i) => id !== old.dishes[i])
+      || Object.keys(meal).some((key) => !["id", "date", "type", "note", "dishes", "setting"].includes(key))) return [meal];
+    if (meal.id === "m19") { moveLegacyAway = true; return []; }
+    return [initialMeals.find((sample) => sample.id === meal.id) || meal];
+  });
+  return {
+    meals: nextMeals,
+    awayEvents: moveLegacyAway && !awayEvents.some((event) => event.id === initialAwayEvents[0].id)
+      ? [...awayEvents, ...initialAwayEvents] : awayEvents,
+  };
+}
+
+export function upgradeWorkLunchSamples(meals: Meal[]) {
+  return meals.map((meal) => {
+    const sample = legacySampleMeals.find((row) => ["m3", "m12"].includes(row.id) && row.id === meal.id);
+    return sample && !meal.setting && !meal.content && meal.date === sample.date && meal.type === sample.type
+      && meal.note === sample.note && meal.dishes.length === 0 ? { ...meal, setting: "figma" as const } : meal;
+  });
+}
 
 export function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;

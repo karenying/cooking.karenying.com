@@ -10,3 +10,4 @@ dist/
 *.tsbuildinfo
 .netlify/
 outputs/
+supabase/.temp/

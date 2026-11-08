@@ -1,55 +1,36 @@
 import { useEffect, useRef, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
   CalendarDays,
-  Check,
   ChefHat,
   ChevronLeft,
   ChevronRight,
-  Clock3,
   CookingPot,
-  Heart,
   Leaf,
   Menu,
   Plus,
   Search,
   SlidersHorizontal,
-  Sparkles,
-  Users,
   X,
 } from "lucide-react";
 import {
   dateKey,
-  initialMeals,
   parseDate,
   recipes as seedRecipes,
   TODAY,
 } from "./data";
-import type { Meal, Recipe } from "./data";
+import type { AwayEvent, Meal, Recipe } from "./data";
+import { awayOnDate, mealSettingClass, mealSettingLabel, validDateRange } from "./calendar";
+import type { CookbookStore } from "./Connection";
+import { AuthGate } from "./AuthGate";
+import { useRecipeCatalogue } from "./useRecipeCatalogue";
+import { useCalendarCatalogue } from "./useCalendarCatalogue";
+import { calendarRecipeCatalogue, legacyRecipeIds } from "./recipe-catalogue";
+import { MealEntryEditor } from "./MealEntryEditor";
 
-function useLocal<T>(key: string, initial: T) {
-  const [value, setValue] = useState<T>(() => {
-    try {
-      const stored = localStorage.getItem(key);
-      return stored ? (JSON.parse(stored) as T) : initial;
-    } catch {
-      return initial;
-    }
-  });
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-      setFailed(false);
-    } catch {
-      setFailed(true);
-    }
-  }, [key, value]);
-  return [value, setValue, failed] as const;
-}
 function go(path: string) {
   window.location.hash = path;
 }
@@ -78,7 +59,9 @@ function Modal({
   title,
   children,
   close,
+  className = "",
 }: {
+  className?: string;
   title: string;
   children: ReactNode;
   close: () => void;
@@ -94,7 +77,7 @@ function Modal({
   return (
     <dialog
       ref={ref}
-      className="modal"
+      className={`modal ${className}`}
       onCancel={close}
       onClick={(event) => {
         if (event.target === event.currentTarget) close();
@@ -144,7 +127,10 @@ function FoodImage({
   );
 }
 
-function DayEditor({ date, meals, recipes, initialDish, save, close }: {
+function DayEditor({ date, meals, recipes, initialDish, save, close, awayEvents, editAway, addAway }: {
+  awayEvents: AwayEvent[];
+  editAway: (event: AwayEvent) => void;
+  addAway: () => void;
   date: string;
   meals: Meal[];
   recipes: Recipe[];
@@ -157,43 +143,47 @@ function DayEditor({ date, meals, recipes, initialDish, save, close }: {
     return (["Lunch", "Dinner"] as const).flatMap((type) => {
       const matches = existing.filter((meal) => meal.type === type);
       const rows = matches.length ? matches : [{ id: crypto.randomUUID(), date, type, dishes: [], note: "" }];
-      return rows.map((row, i) => initialDish && type === "Dinner" && i === 0
-        ? { ...row, dishes: [...new Set([...row.dishes, initialDish])] } : row);
+      return rows.map((row, i) => ({ ...row, setting: row.setting || "home",
+        ...(initialDish && type === "Dinner" && i === 0 ? { dishes: [...new Set([...row.dishes, initialDish])] } : {}) }));
     });
   });
   function update(id: string, change: Partial<Meal>) {
     setEntries((current) => current.map((entry) => entry.id === id ? { ...entry, ...change } : entry));
   }
   return (
-    <Modal title={prettyDate(date)} close={close}>
+    <Modal title={prettyDate(date)} close={close} className="day-editor-modal">
       <form className="editor-form" onSubmit={(event) => {
         event.preventDefault();
         save(entries.map((entry) => ({ ...entry, note: entry.note.trim() }))
-          .filter((entry) => entry.note || entry.dishes.length));
+          .filter((entry) => entry.note || entry.dishes.length || entry.setting === "out" || entry.setting === "figma"));
         close();
       }}>
+        <div className="day-editor-body">
+        <div className="day-away-section">
+          {awayOnDate(awayEvents, date).length > 0 && <p className="section-help">You’re away on this date. Meal entries below are optional.</p>}
+          {awayOnDate(awayEvents, date).map((event) => (
+            <button key={event.id} type="button" className="away-summary" onClick={() => editAway(event)}>
+              Away · {event.title} <span>Edit event</span>
+            </button>
+          ))}
+          <button type="button" className="text-button" onClick={addAway}>Add away / vacation event</button>
+        </div>
         {entries.map((entry, index) => (
           <section className="day-editor-meal" key={entry.id}>
-            <label htmlFor={`day-note-${entry.id}`}>{entry.type}</label>
-            <textarea id={`day-note-${entry.id}`} autoFocus={index === 0} rows={3}
-              aria-label={`${entry.type} entry ${index + 1}`}
-              placeholder={entry.type === "Lunch" ? "What’s for lunch?" : "What’s for dinner?"}
-              value={entry.note} onChange={(event) => update(entry.id, { note: event.target.value })} />
-            <div className="day-dish-links">
-              {entry.dishes.map((id) => <button type="button" className="day-dish-chip" key={id}
-                aria-label={`Remove ${recipes.find((recipe) => recipe.id === id)?.name || "recipe"} from ${entry.type}`}
-                onClick={() => update(entry.id, { dishes: entry.dishes.filter((dish) => dish !== id) })}>
-                {recipes.find((recipe) => recipe.id === id)?.name || "Recipe"}<X size={13} />
-              </button>)}
-              <select aria-label={`Link recipe to ${entry.type} entry ${index + 1}`} value=""
-                onChange={(event) => { if (event.target.value) update(entry.id, { dishes: [...entry.dishes, event.target.value] }); }}>
-                <option value="">Link a recipe…</option>
-                {recipes.filter((recipe) => !entry.dishes.includes(recipe.id)).map((recipe) =>
-                  <option key={recipe.id} value={recipe.id}>{recipe.name}</option>)}
+            <div className="meal-editor-heading">
+              <span>{entry.type}</span>
+              <select aria-label={`${entry.type} setting ${index + 1}`} value={entry.setting || "home"}
+                onChange={(event) => update(entry.id, { setting: event.target.value as Meal["setting"] })}>
+                <option value="home">At home</option>
+                <option value="out">Eating out</option>
+                <option value="figma">Figma</option>
               </select>
             </div>
+            <MealEntryEditor value={entry} recipes={recipes} label={`${entry.type} entry ${index + 1}`}
+              autoFocus={index === 0} onChange={(change) => update(entry.id, change)} />
           </section>
         ))}
+        </div>
         <div className="modal-footer">
           <button type="button" className="text-button" onClick={close}>Cancel</button>
           <button className="primary-button">Save day</button>
@@ -201,6 +191,52 @@ function DayEditor({ date, meals, recipes, initialDish, save, close }: {
       </form>
     </Modal>
   );
+}
+
+function AwayEditor({ initialDate, event, save, remove, close }: {
+  initialDate: string;
+  event: AwayEvent | null;
+  save: (event: AwayEvent) => void;
+  remove: (event: AwayEvent) => void;
+  close: () => void;
+}) {
+  const [title, setTitle] = useState(event?.title || "");
+  const [startDate, setStartDate] = useState(event?.startDate || initialDate);
+  const [endDate, setEndDate] = useState(event?.endDate || initialDate);
+  const [note, setNote] = useState(event?.note || "");
+  const [error, setError] = useState("");
+  return <Modal title={event ? "Edit away event" : "Add away event"} close={close}>
+    <form className="editor-form" onSubmit={(e) => {
+      e.preventDefault();
+      if (!validDateRange(startDate, endDate)) { setError("Choose valid dates, with the end on or after the start."); return; }
+      save({ id: event?.id || crypto.randomUUID(), title: title.trim() || "Away", startDate, endDate, note: note.trim() });
+      close();
+    }}>
+      <p className="section-help">Mark a vacation or time away. Meals on these dates stay in your calendar.</p>
+      <label>Event name<input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Vacation in Japan" /></label>
+      <div className="form-row away-dates">
+        <label>Start date<input type="date" required value={startDate} onChange={(e) => { setStartDate(e.target.value); setError(""); }} /></label>
+        <label>End date<input type="date" required min={startDate} value={endDate} onChange={(e) => { setEndDate(e.target.value); setError(""); }} /></label>
+      </div>
+      <p className="section-help">All-day event. Both the start and end dates are included.</p>
+      <label>Notes (optional)<textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+      {error && <p role="alert">{error}</p>}
+      <div className="modal-footer away-editor-footer">
+        {event && <button type="button" className="text-button delete-event" onClick={() => { remove(event); close(); }}>Remove event</button>}
+        <button type="button" className="text-button" onClick={close}>Cancel</button>
+        <button className="primary-button">Save away event</button>
+      </div>
+    </form>
+  </Modal>;
+}
+
+function AwaySummary({ event, edit }: { event: AwayEvent; edit: () => void }) {
+  return <button className="away-summary" onClick={edit}>
+    <strong>Away · {event.title}</strong>
+    <span>{parseDate(event.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} – {parseDate(event.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+    {event.note && <span>{event.note}</span>}
+    <span className="away-edit-label">Edit event</span>
+  </button>;
 }
 
 function RecipeEditor({
@@ -325,7 +361,13 @@ function Calendar({
   recipes,
   addMeal,
   editMeal,
+  awayEvents,
+  addAway,
+  editAway,
 }: {
+  awayEvents: AwayEvent[];
+  addAway: (date: string) => void;
+  editAway: (event: AwayEvent) => void;
   meals: Meal[];
   recipes: Recipe[];
   addMeal: (date: string, dish?: string) => void;
@@ -372,6 +414,8 @@ function Calendar({
           </h1>
           
         </div>
+        <div className="calendar-heading-actions">
+        <button className="secondary-button" onClick={() => addAway(selected)}>Add away event</button>
         <button
           className="primary-button heading-action"
           onClick={() => addMeal(selected)}
@@ -379,6 +423,7 @@ function Calendar({
           <Plus size={18} />
           Edit day
         </button>
+        </div>
       </header>
       <section className="calendar-panel" aria-label="Meal calendar">
         <div className="calendar-toolbar">
@@ -442,6 +487,7 @@ function Calendar({
           {days.map((day) => {
             const key = dateKey(day);
             const inMonth = day.getMonth() === month.getMonth();
+            const dayAwayEvents = awayOnDate(awayEvents, key);
             const entries = visibleMeals
               .filter((m) => m.date === key)
               .sort((a, b) =>
@@ -450,6 +496,7 @@ function Calendar({
             return (
               <div
                 key={key}
+                data-date={key}
                 onClick={(event) => {
                   if (!(event.target as HTMLElement).closest("button, a")) { setSelected(key); addMeal(key); }
                 }}
@@ -460,12 +507,12 @@ function Calendar({
                 }}
                 tabIndex={0}
                 aria-label={`Edit day ${prettyDate(key)}`}
-                className={`calendar-day ${!inMonth ? "outside-month" : ""} ${key === TODAY ? "is-today" : ""} ${selected === key ? "selected-day" : ""}`}
+                className={`calendar-day ${dayAwayEvents.length ? "is-away" : ""} ${!inMonth ? "outside-month" : ""} ${key === TODAY ? "is-today" : ""} ${selected === key ? "selected-day" : ""}`}
               >
                 <div className="day-top">
                   <button
                     className="day-number"
-                    aria-label={`${prettyDate(key)}${key === TODAY ? ", today" : ""}, ${entries.length} meals`}
+                    aria-label={`${prettyDate(key)}${key === TODAY ? ", today" : ""}, ${entries.length} meals${dayAwayEvents.length ? ", away" : ""}`}
                     aria-pressed={selected === key}
                     onClick={() => setSelected(key)}
                   >
@@ -482,10 +529,18 @@ function Calendar({
                     <Plus size={13} />
                   </button>
                 </div>
+                <div className="cell-away-events">
+                  {dayAwayEvents.map((event) => <button key={event.id}
+                    className={`away-calendar-event ${event.startDate === key || day.getDay() === 0 ? "away-start" : ""} ${event.endDate === key || day.getDay() === 6 ? "away-end" : ""}`}
+                    aria-label={`Edit away event ${event.title}, ${prettyDate(event.startDate)} to ${prettyDate(event.endDate)}`}
+                    onClick={() => { setSelected(key); editAway(event); }}>
+                    <span className="away-desktop-title">Away · {event.title}</span><span className="away-mobile-title">Away</span>
+                  </button>)}
+                </div>
                 <div className="cell-meals">
                   {entries.map((meal) => (
                     <div
-                      className={`cell-meal ${meal.dishes.length ? "home-meal" : "note-meal"}`}
+                      className={`cell-meal ${meal.dishes.length ? "home-meal" : "note-meal"} meal-${mealSettingClass(meal)}`}
                       key={meal.id}
                     >
                       <button
@@ -495,6 +550,7 @@ function Calendar({
                       >
                         {meal.type}
                       </button>
+                      <span className="meal-setting">{mealSettingLabel(meal)}</span>
                       {meal.dishes.map((id) => {
                         const dish = recipes.find((r) => r.id === id);
                         return (
@@ -527,7 +583,7 @@ function Calendar({
                     <i
                       key={meal.id}
                       className={
-                        meal.dishes.length ? "olive-dot" : "orange-dot"
+                        `setting-dot ${mealSettingClass(meal)}`
                       }
                     />
                   ))}
@@ -537,15 +593,11 @@ function Calendar({
           })}
         </div>
         <div className="calendar-legend">
-          <span>
-            <i className="olive-dot" />
-            From the cookbook
-          </span>
-          <span>
-            <i className="orange-dot" />
-            Notes & other plans
-          </span>
-          <span className="calendar-hint">Select a meal to edit</span>
+          <span><i className="setting-dot at-home" />At home / cookbook</span>
+          <span><i className="setting-dot eating-out" />Eating out</span>
+          <span><i className="setting-dot figma" />Figma</span>
+          <span><i className="setting-dot away" />Away</span>
+          <span className="calendar-hint">Select a meal or event to edit</span>
         </div>
       </section>
       <section className="mobile-day-detail" aria-label="Selected day meals">
@@ -568,11 +620,14 @@ function Calendar({
             <Plus size={20} />
           </button>
         </div>
+        <div className="selected-away-events">
+          {awayOnDate(awayEvents, selected).map((event) => <AwaySummary key={event.id} event={event} edit={() => editAway(event)} />)}
+        </div>
         {selectedMeals.length ? (
           selectedMeals.map((meal) => (
-            <article className="mobile-meal" key={meal.id}>
+            <article className={`mobile-meal meal-${mealSettingClass(meal)}`} key={meal.id}>
               <div className="mobile-meal-heading">
-                <span className="eyebrow">{meal.type}</span>
+                <span className="eyebrow">{meal.type} · {mealSettingLabel(meal)}</span>
                 <button className="text-button" onClick={() => editMeal(meal)}>
                   Edit
                 </button>
@@ -605,70 +660,33 @@ function Calendar({
         ) : (
           <div className="day-empty">
             <Leaf size={25} strokeWidth={1.3} />
-            <p>No meals planned.</p>
+            <p>{awayOnDate(awayEvents, selected).length ? "No meals added while away." : "No meals planned."}</p>
             <button className="text-button" onClick={() => addMeal(selected)}>
               Edit day
             </button>
           </div>
         )}
       </section>
-      {!hasMeals && (
+      {!hasMeals && !awayEvents.some((event) => event.startDate <= dateKey(last) && event.endDate >= dateKey(first)) && (
         <p className="month-empty">
           A fresh month. Use the + in any day to start planning.
         </p>
       )}
-      <section className="inspiration">
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">A FEW OLD FRIENDS</span>
-            <h2>Recipe suggestions</h2>
-          </div>
-          <a className="text-link" href="#/recipes">
-            All recipes <ArrowRight size={16} />
-          </a>
-        </div>
-        <div className="inspiration-grid">
-          {recipes
-            .filter((r) => r.favorite)
-            .slice(0, 3)
-            .map((recipe) => (
-              <a
-                className="inspiration-card"
-                href={`#/recipes/${recipe.id}`}
-                key={recipe.id}
-              >
-                <FoodImage recipe={recipe} />
-                <div>
-                  <span className="eyebrow">{recipe.cuisine}</span>
-                  <h3>{recipe.name}</h3>
-                  <span className="recipe-meta">
-                    <Clock3 size={13} />
-                    {recipe.time} min
-                  </span>
-                </div>
-                <ArrowRight size={18} />
-              </a>
-            ))}
-        </div>
-      </section>
     </>
   );
 }
 
 function RecipeIndex({
   recipes,
-  toggleFavorite,
   addRecipe,
 }: {
   recipes: Recipe[];
-  toggleFavorite: (id: string) => void;
   addRecipe: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All dishes");
   const [cuisine, setCuisine] = useState("All cuisines");
   const [sort, setSort] = useState("A–Z");
-  const [favorites, setFavorites] = useState(false);
   const categories = [...new Set(recipes.map((r) => r.category))];
   const filtered = recipes
     .filter(
@@ -677,8 +695,7 @@ function RecipeIndex({
           .toLowerCase()
           .includes(query.toLowerCase()) &&
         (category === "All dishes" || r.category === category) &&
-        (cuisine === "All cuisines" || r.cuisine === cuisine) &&
-        (!favorites || r.favorite),
+        (cuisine === "All cuisines" || r.cuisine === cuisine),
     )
     .sort((a, b) =>
       sort === "Quickest"
@@ -724,14 +741,7 @@ function RecipeIndex({
             </button>
           )}
         </div>
-        <button
-          className={`favorite-filter ${favorites ? "active" : ""}`}
-          aria-pressed={favorites}
-          onClick={() => setFavorites(!favorites)}
-        >
-          <Heart size={17} fill={favorites ? "currentColor" : "none"} />
-          <span>Favorites</span>
-        </button>
+
       </div>
       <div className="category-tabs" aria-label="Recipe categories">
         {["All dishes", ...categories].map((c) => (
@@ -772,28 +782,9 @@ function RecipeIndex({
           </label>
         </div>
       </div>
-      <div className="recipe-grid">
+      <div className="recipe-list">
         {filtered.map((recipe) => (
           <article className="recipe-card" key={recipe.id}>
-            <a
-              href={`#/recipes/${recipe.id}`}
-              className="card-image-link"
-              tabIndex={-1}
-              aria-hidden="true"
-            >
-              <FoodImage recipe={recipe} />
-            </a>
-            <button
-              className={`favorite-button ${recipe.favorite ? "is-favorite" : ""}`}
-              aria-label={`${recipe.favorite ? "Unfavorite" : "Favorite"} ${recipe.name}`}
-              aria-pressed={recipe.favorite}
-              onClick={() => toggleFavorite(recipe.id)}
-            >
-              <Heart
-                size={18}
-                fill={recipe.favorite ? "currentColor" : "none"}
-              />
-            </button>
             <div className="recipe-card-body">
               <span className="eyebrow">
                 {recipe.cuisine} <span className="tag-dot">·</span>{" "}
@@ -802,14 +793,7 @@ function RecipeIndex({
               <h2>
                 <a href={`#/recipes/${recipe.id}`}>{recipe.name}</a>
               </h2>
-              <p>{recipe.description || "No description added."}</p>
-              <div className="card-meta">
-                <span>
-                  <Clock3 size={15} />
-                  {recipe.time ? `${recipe.time} min` : "Time not added"}
-                </span>
-                <ArrowRight size={17} />
-              </div>
+
             </div>
           </article>
         ))}
@@ -825,7 +809,6 @@ function RecipeIndex({
               setQuery("");
               setCategory("All dishes");
               setCuisine("All cuisines");
-              setFavorites(false);
             }}
           >
             Clear filters
@@ -840,17 +823,10 @@ function RecipeIndex({
 function RecipePage({
   recipe,
   meals,
-  toggleFavorite,
-  addMeal,
 }: {
   recipe: Recipe;
   meals: Meal[];
-  toggleFavorite: (id: string) => void;
-  addMeal: (date: string, dish?: string) => void;
 }) {
-  const [checked, setChecked] = useState<string[]>([]);
-  const [done, setDone] = useState<number[]>([]);
-  const [section, setSection] = useState("ingredients");
   const [wake, setWake] = useState(false);
   const [wakeMessage, setWakeMessage] = useState("");
   const lock = useRef<{
@@ -897,16 +873,6 @@ function RecipePage({
       );
     }
   }
-  function jump(id: string) {
-    setSection(id);
-    document
-      .getElementById(id)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-  const ingredientCount = recipe.ingredients.reduce(
-    (sum, group) => sum + group.items.length,
-    0,
-  );
   return (
     <div className="recipe-detail">
       <a href="#/recipes" className="back-link">
@@ -923,79 +889,19 @@ function RecipePage({
             {recipe.name}
             <span>.</span>
           </h1>
-          <p>
-            {recipe.description || "No description added."}
-          </p>
-          <div className="detail-meta">
-            {recipe.time > 0 && (
-              <span>
-                <Clock3 size={17} />
-                {recipe.time} minutes
-              </span>
-            )}
-            {recipe.servings && (
-              <span>
-                <Users size={17} />
-                Serves {recipe.servings}
-              </span>
-            )}
-          </div>
-          <div className="recipe-actions">
-            <button
-              className="primary-button"
-              onClick={() => addMeal(TODAY, recipe.id)}
-            >
-              <CalendarDays size={17} />
-              Add to calendar
-            </button>
-            <button
-              className={`icon-button outlined ${recipe.favorite ? "is-favorite" : ""}`}
-              aria-pressed={recipe.favorite}
-              aria-label={`${recipe.favorite ? "Unfavorite" : "Favorite"} ${recipe.name}`}
-              onClick={() => toggleFavorite(recipe.id)}
-            >
-              <Heart
-                size={19}
-                fill={recipe.favorite ? "currentColor" : "none"}
-              />
-            </button>
-          </div>
         </div>
-        <FoodImage recipe={recipe} className="recipe-cover" />
-        <span className="photo-caption">
-          Sample photo
-        </span>
       </div>
-      <nav className="recipe-section-nav" aria-label="Recipe sections">
-        <div>
-          <button
-            className={section === "ingredients" ? "active" : ""}
-            onClick={() => jump("ingredients")}
-          >
-            Ingredients <span>{ingredientCount}</span>
-          </button>
-          <button
-            className={section === "method" ? "active" : ""}
-            onClick={() => jump("method")}
-          >
-            Method <span>{recipe.steps.length}</span>
-          </button>
-          <button
-            className={section === "kitchen-notes" ? "active" : ""}
-            onClick={() => jump("kitchen-notes")}
-          >
-            Notes
-          </button>
-        </div>
+      <div className="recipe-tools">
         <button
           className={`screen-awake ${wake ? "active" : ""}`}
-          aria-pressed={wake}
+          role="switch"
+          aria-checked={wake}
           onClick={toggleWake}
         >
-          <Sparkles size={15} />
-          <span>{wake ? "Screen staying on" : "Keep screen on"}</span>
+          <span>Keep screen on</span>
+          <span className="switch-track" aria-hidden="true"><span /></span>
         </button>
-      </nav>
+      </div>
       {wakeMessage && (
         <p className="wake-message" role="status">
           {wakeMessage}
@@ -1003,112 +909,46 @@ function RecipePage({
       )}
       <div className="recipe-content">
         <section className="ingredients-section" id="ingredients">
-          <div className="section-heading">
-            <h2>Ingredients</h2>
-            {checked.length > 0 && (
-              <button className="text-button" onClick={() => setChecked([])}>
-                Reset
-              </button>
-            )}
-          </div>
-          <p className="section-help">Check off ingredients as you prep.</p>
+          <h2>Ingredients</h2>
           {recipe.ingredients.length ? (
             recipe.ingredients.map((group, groupIndex) => (
               <div className="ingredient-group" key={groupIndex}>
                 <h3>{group.name}</h3>
-                {group.items.map((item, i) => {
-                  const id = `${groupIndex}-${i}`;
-                  return (
-                    <label
-                      className={`ingredient ${checked.includes(id) ? "checked" : ""}`}
-                      key={id}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked.includes(id)}
-                        onChange={() =>
-                          setChecked(
-                            checked.includes(id)
-                              ? checked.filter((key) => key !== id)
-                              : [...checked, id],
-                          )
-                        }
-                      />
-                      <span className="custom-checkbox">
-                        {checked.includes(id) && <Check size={13} />}
-                      </span>
-                      <span>{item}</span>
-                    </label>
-                  );
-                })}
+                <ul className="ingredient-list">
+                  {group.items.map((item, i) => (
+                    <li className="ingredient" key={i}>{item}</li>
+                  ))}
+                </ul>
               </div>
             ))
           ) : (
             <p className="muted">No ingredients added yet.</p>
           )}
-          <div className="ingredient-progress">
-            {checked.length} of {ingredientCount} ingredients ready
-            <div>
-              <span
-                style={{
-                  width: `${ingredientCount ? (checked.length / ingredientCount) * 100 : 0}%`,
-                }}
-              />
-            </div>
-          </div>
         </section>
         <section className="method-section" id="method">
-          <div className="section-heading">
-            <h2>Method</h2>
-            {done.length > 0 && (
-              <button className="text-button" onClick={() => setDone([])}>
-                Reset
-              </button>
-            )}
-          </div>
-          <p className="section-help">Mark each step as you go.</p>
+          <h2>Instructions</h2>
           {recipe.steps.length ? (
-            recipe.steps.map((step, i) => (
-              <article
-                className={`method-step ${done.includes(i) ? "step-done" : ""}`}
-                key={i}
-              >
-                <button
-                  className="step-number"
-                  aria-label={`Mark step ${i + 1} ${done.includes(i) ? "incomplete" : "complete"}`}
-                  aria-pressed={done.includes(i)}
-                  onClick={() =>
-                    setDone(
-                      done.includes(i)
-                        ? done.filter((n) => n !== i)
-                        : [...done, i],
-                    )
-                  }
-                >
-                  {done.includes(i) ? (
-                    <Check size={17} />
-                  ) : (
-                    String(i + 1).padStart(2, "0")
-                  )}
-                </button>
-                <div>
-                  <h3>{step.title}</h3>
-                  <p>{step.text}</p>
-                </div>
-              </article>
-            ))
+            <ol className="method-list">
+              {recipe.steps.map((step, i) => (
+                <li className="method-step" key={i}>
+                  <p>{step.title && <strong>{step.title}: </strong>}{step.text}</p>
+                </li>
+              ))}
+            </ol>
           ) : (
             <p className="muted">No instructions added yet.</p>
           )}
-          <section className="kitchen-note" id="kitchen-notes">
-            <span className="eyebrow">
-              <ChefHat size={17} />Notes
-            </span>
-            <p>
-              {recipe.note ||
-                "No notes added."}
-            </p>
-          </section>
+          {recipe.originalSource && /^https?:\/\//i.test(recipe.originalSource) && (
+            <p><a className="text-link" href={recipe.originalSource} target="_blank" rel="noopener noreferrer">Original source ↗</a></p>
+          )}
+          {recipe.note?.trim() && (
+            <section className="kitchen-note" id="kitchen-notes">
+              <span className="eyebrow">
+                <ChefHat size={17} />Notes
+              </span>
+              <p>{recipe.note}</p>
+            </section>
+          )}
           {history.length > 0 && (
             <div className="recipe-history">
               <CalendarDays size={17} />
@@ -1129,26 +969,45 @@ function RecipePage({
 }
 
 export default function App() {
+  return <AuthGate><LocalCookbook /></AuthGate>;
+}
+
+function LocalCookbook() {
+  const catalogue = useRecipeCatalogue();
+  const { recipes, setRecipes } = catalogue;
+  const [legacyRecipes] = useState<Recipe[]>(() => {
+    try { return JSON.parse(localStorage.getItem("at-home-recipes-v1") || "null") || seedRecipes; }
+    catch { return seedRecipes; }
+  });
+  const calendarRecipes = calendarRecipeCatalogue(recipes, legacyRecipes);
+  const calendar = useCalendarCatalogue();
+  const { meals, setMeals, awayEvents, setAwayEvents } = calendar;
+  return <Cookbook store={{ recipes, setRecipes, meals, setMeals }} awayEvents={awayEvents} setAwayEvents={setAwayEvents} storageFailed={catalogue.storageFailed || calendar.storageFailed} calendarRecipes={calendarRecipes} catalogue={catalogue} calendar={calendar} />;
+}
+
+function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue, calendar, storageFailed = false }: {
+  calendar: ReturnType<typeof useCalendarCatalogue>;
+  calendarRecipes: Recipe[];
+  catalogue: ReturnType<typeof useRecipeCatalogue>;
+  awayEvents: AwayEvent[];
+  setAwayEvents: Dispatch<SetStateAction<AwayEvent[]>>;
+  store: CookbookStore; storageFailed?: boolean;
+}) {
   const route = useRoute();
-  const [recipes, setRecipes, recipesFailed] = useLocal<Recipe[]>(
-    "at-home-recipes-v1",
-    seedRecipes,
-  );
-  const [meals, setMeals, mealsFailed] = useLocal<Meal[]>(
-    "at-home-meals-v1",
-    initialMeals,
-  );
+  const { recipes, setRecipes, meals, setMeals } = store;
   const [editor, setEditor] = useState<{
     date: string;
     meal: Meal | null;
     creating?: boolean;
   } | null>(null);
+  const [awayEditor, setAwayEditor] = useState<{ date: string; event: AwayEvent | null } | null>(null);
+  const [removedAway, setRemovedAway] = useState<AwayEvent | null>(null);
   const [addingRecipe, setAddingRecipe] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [undo, setUndo] = useState<Meal | null>(null);
   const isRecipes = route.startsWith("/recipes");
   const recipeId = route.split("/")[2];
-  const recipe = recipes.find((r) => r.id === recipeId);
+  const recipe = recipes.find((r) => r.id === recipeId) || calendarRecipes.find(r => r.id === recipeId);
   useEffect(() => {
     setMenuOpen(false);
     document.title = `${recipe?.name || (isRecipes ? "Recipes" : "Calendar")} — cooking.karenying.com`;
@@ -1171,12 +1030,18 @@ export default function App() {
   function saveMeal(meal: Meal) {
     setMeals((current) => [...current.filter((m) => m.id !== meal.id), meal]);
   }
-  function toggleFavorite(id: string) {
-    setRecipes((current) =>
-      current.map((r) => (r.id === id ? { ...r, favorite: !r.favorite } : r)),
-    );
-  }
   return (
+    <>
+    {(catalogue.pending || calendar.pending) && <p className="cloud-message" role="status">Saving to Supabase…</p>}
+    {(catalogue.saveError || calendar.saveError) && <div className="storage-warning cloud-message" role="alert">
+      <p>Changes haven’t saved: {catalogue.saveError || calendar.saveError}</p>
+      <button className="text-button" onClick={() => { if (catalogue.saveError) void catalogue.retrySave(); if (calendar.saveError) calendar.retrySave(); }}>Retry save</button>
+      <button className="text-button" onClick={() => { if (catalogue.saveError) catalogue.discardFailed(); if (calendar.saveError) calendar.discardFailed(); }}>Discard unsaved changes and reload</button>
+    </div>}
+    {(catalogue.unsyncedCount || calendar.unsyncedCount) > 0 && !catalogue.saveError && !calendar.saveError && !catalogue.pending && !calendar.pending && <div className="cloud-message">
+      Previous device changes are still local. <button className="text-button" onClick={() => { void catalogue.syncDrafts(); calendar.syncDrafts(); }}>Save device changes to Supabase</button>
+    </div>}
+    <fieldset className="cookbook-controls" disabled={catalogue.loading || calendar.loading || catalogue.pending || calendar.pending || !!catalogue.saveError || !!calendar.saveError}>
     <div className="app-shell">
       <header className="mobile-header">
         <a className="site-title" href="#/calendar">cooking.karenying.com</a>
@@ -1222,17 +1087,21 @@ export default function App() {
           <a className="site-title" href="#/calendar">cooking.karenying.com</a>
           <span className="prototype-badge">
             <i />
-            Sample data
+            {catalogue.loading ? "Loading recipes…" : "Recipes from Supabase"}
           </span>
         </div>
         <main id="main-content">
-          {recipesFailed || mealsFailed ? (
+          {catalogue.error && <div className="storage-warning" role="alert">Recipes couldn’t load: {catalogue.error} <button className="text-button" onClick={catalogue.retry}>Retry recipes</button></div>}
+          {catalogue.loading && <p role="status">Loading recipes from Supabase…</p>}
+          {calendar.error && <div className="storage-warning" role="alert">Calendar couldn’t load: {calendar.error} <button className="text-button" onClick={calendar.retry}>Retry calendar</button></div>}
+          {calendar.loading && <p role="status">Loading calendar from Supabase…</p>}
+          {storageFailed ? (
             <div className="storage-warning" role="alert">
               Browser storage is unavailable. Changes will only last for this
               visit.
             </div>
           ) : null}
-          {recipeId && !recipe ? (
+          {recipeId && !recipe && (catalogue.loading || catalogue.error) ? null : recipeId && !recipe ? (
             <div className="empty-state">
               <h1>That recipe isn’t here.</h1>
               <a href="#/recipes" className="text-link">
@@ -1242,28 +1111,28 @@ export default function App() {
           ) : recipe ? (
             <RecipePage
               key={recipe.id}
-              recipe={recipe}
-              meals={meals}
-              toggleFavorite={toggleFavorite}
-              addMeal={addMeal}
+              recipe={{ ...recipe, id: legacyRecipeIds[recipe.id] || recipe.id }}
+              meals={meals.map(meal => ({ ...meal, dishes: meal.dishes.map(id => legacyRecipeIds[id] || id) }))}
             />
           ) : isRecipes ? (
             <RecipeIndex
               recipes={recipes}
-              toggleFavorite={toggleFavorite}
               addRecipe={() => setAddingRecipe(true)}
             />
           ) : (
             <Calendar
               meals={meals}
-              recipes={recipes}
+              recipes={calendarRecipes}
               addMeal={addMeal}
               editMeal={(meal) => setEditor({ date: meal.date, meal })}
+              awayEvents={awayEvents}
+              addAway={(date) => setAwayEditor({ date, event: null })}
+              editAway={(event) => setAwayEditor({ date: event.startDate, event })}
             />
           )}
           <footer className="page-footer">
             
-            <span>Prototype · changes saved on this device</span>
+            <span>Shared recipes and calendar · saves to Supabase</span>
           </footer>
         </main>
       </div>
@@ -1285,11 +1154,22 @@ export default function App() {
         </a>
       </nav>
       {editor && (
-        <DayEditor key={editor.date} date={editor.date} meals={meals} recipes={recipes}
+        <DayEditor key={editor.date} date={editor.date} meals={meals} recipes={calendarRecipes}
           initialDish={editor.creating ? editor.meal?.dishes[0] : undefined}
           save={(entries) => setMeals((current) => [...current.filter((meal) => meal.date !== editor.date), ...entries])}
+          awayEvents={awayEvents}
+          addAway={() => setAwayEditor({ date: editor.date, event: null })}
+          editAway={(event) => setAwayEditor({ date: event.startDate, event })}
           close={() => setEditor(null)} />
       )}
+      {awayEditor && <AwayEditor initialDate={awayEditor.date} event={awayEditor.event}
+        save={(event) => setAwayEvents((current) => [...current.filter((item) => item.id !== event.id), event])}
+        remove={(event) => { setAwayEvents((current) => current.filter((item) => item.id !== event.id)); setRemovedAway(event); setUndo(null); }}
+        close={() => setAwayEditor(null)} />}
+      {removedAway && <div className="undo-toast" role="status">Away event removed
+        <button onClick={() => { setAwayEvents((current) => [...current, removedAway]); setRemovedAway(null); }}>Undo</button>
+        <button aria-label="Dismiss notification" onClick={() => setRemovedAway(null)}><X size={15} /></button>
+      </div>}
       {addingRecipe && (
         <RecipeEditor
           save={(recipe) => setRecipes((current) => [...current, recipe])}
@@ -1316,5 +1196,7 @@ export default function App() {
         </div>
       )}
     </div>
+    </fieldset>
+    </>
   );
 }
