@@ -2,10 +2,10 @@ import type { AwayEvent, Meal, Recipe } from "./data";
 
 export type DayKind = "cooked" | "out" | "mix" | "away";
 export const dayKinds: { key: DayKind; label: string; color: string }[] = [
-  { key: "cooked", label: "Cooked", color: "#fce5cd" },
-  { key: "out", label: "Ate out", color: "#f4cccc" },
-  { key: "mix", label: "Mix", color: "#f8d9cd" },
-  { key: "away", label: "Away", color: "#d0e0e3" },
+  { key: "cooked", label: "Cooked", color: "#dce8f5" },
+  { key: "out", label: "Ate out", color: "#f4cdd2" },
+  { key: "mix", label: "Mix", color: "#e2dff1" },
+  { key: "away", label: "Away", color: "#d6e7eb" },
 ];
 const nextDay = (key: string) => {
   const date = new Date(`${key}T12:00:00Z`);

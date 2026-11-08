@@ -1,0 +1,244 @@
+/* The kitchen journal: crisp white, cool ink, serif display type and quiet rules.
+   Loaded after the feature styles so every page shares the same visual system. */
+:root {
+  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --serif: "DM Serif Display", Georgia, "Times New Roman", serif;
+  --paper: #ffffff;
+  --white: #ffffff;
+  --olive: #315b87;
+  --olive-dark: #234364;
+  --orange: #315b87;
+  --muted: #505b6b;
+  --line: #cbd3df;
+  --ink: #202733;
+  --soft-accent: #edf2f8;
+  background: var(--paper);
+  color: var(--ink);
+}
+body { background: var(--paper); }
+h1, h2 { font-family: var(--serif); font-weight: 400; }
+button:focus-visible, a:focus-visible { outline-color: var(--olive); }
+::selection { background: #dbe7f5; color: var(--ink); }
+.mobile-header, .workspace-topbar, .sidebar, .sidebar-open { background: var(--paper); }
+.mobile-header { height: 72px; }
+.site-title { font-family: var(--serif); color: var(--ink); font-weight: 400; font-size: 20px; letter-spacing: -.5px; }
+.workspace-topbar { border-bottom: 1px solid var(--line); }
+.prototype-badge { color: var(--muted); font-size: 10px; }
+.prototype-badge i { background: #7b8fa5; }
+.connection-bar { color: var(--muted); font-size: 11px; background: var(--paper); }
+.connection-bar .text-button { font-size: 11px; }
+.journal-masthead { display: flex; flex-direction: column; gap: 9px; margin: 0 12px 36px; padding-bottom: 28px; border-bottom: 1px solid var(--ink); }
+.journal-masthead > span { font-family: var(--serif); font-size: 36px; line-height: 1.1; letter-spacing: -1.3px; }
+.journal-masthead small { font-size: 8px; letter-spacing: 2px; color: var(--muted); }
+.sidebar nav { gap: 4px; }
+.sidebar nav a { border-radius: 8px; color: var(--muted); font-weight: 400; }
+.sidebar nav a svg { width: 17px; stroke-width: 1.5; }
+.sidebar nav a.active { border-radius: 0 8px 8px 0; background: var(--soft-accent); color: var(--olive-dark); font-weight: 500; box-shadow: inset 2px 0 var(--olive); }
+.nav-count { background: #e9edf2; color: var(--muted); border-radius: 8px; }
+main { padding-top: 26px; }
+.page-heading, .analytics-heading { border-bottom: 1px solid var(--ink); padding-bottom: 26px; margin-bottom: 26px; }
+.page-heading .eyebrow, .analytics-heading .eyebrow { display: block; font-family: "DM Sans", sans-serif; font-size: 9px; font-weight: 500; letter-spacing: 1.8px; text-transform: uppercase; color: var(--olive); margin-bottom: 10px; }
+.page-heading .tiny-line { display: none; }
+.page-heading h1, .analytics-heading h1 { font-family: var(--serif); font-size: clamp(40px, 4.8vw, 62px); font-weight: 400; letter-spacing: -1.5px; line-height: 1.08; margin: 0; max-width: none; }
+.analytics-heading p { margin-top: 10px; }
+.primary-button, .secondary-button, .today-button { border-radius: 8px; font-size: 12px; min-height: 44px; }
+.primary-button, .mobile-add { background: var(--olive); color: var(--white); }
+.primary-button:hover { background: var(--olive-dark); }
+.secondary-button, .calendar-heading-actions .secondary-button { background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; }
+.secondary-button:hover { background: var(--soft-accent); }
+.text-button, .text-link { color: var(--olive); }
+.icon-button { color: var(--muted); }
+.calendar-panel { background: var(--white); border-radius: 12px; overflow: hidden; border-color: var(--line); box-shadow: none; }
+.calendar-toolbar { background: var(--white); }
+.month-controls h2 { font-size: 24px; font-family: var(--serif); font-weight: 400; color: var(--ink); letter-spacing: -.5px; }
+.today-button { color: var(--ink); background: transparent; border-color: var(--line); }
+.weekday { color: var(--muted); font-size: 10px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; background: var(--white); }
+.day-number { color: var(--ink); font-variant-numeric: tabular-nums; }
+.calendar-day { border-color: var(--line); background: var(--white); }
+.calendar-day.is-today, .selected-day { background: var(--white); }
+.is-today .day-number { background: var(--olive); color: var(--white); }
+.calendar-day.is-away:not(.is-today) { background: var(--white); }
+.calendar-legend { color: var(--muted); }
+.setting-dot.at-home { background: #6486ab; }
+.setting-dot.eating-out { background: #b54c57; }
+.setting-dot.away { background: #72969d; }
+.setting-dot.figma { background: #8b5cc2; }
+.away-calendar-event { background: #dce9ed; color: #294d58; }
+.away-summary { background: #f0f6f7; color: #3b6069; border-color: #72969d; border-radius: 8px; }
+.day-dish-chip, .meal-recipe-chip { background: var(--soft-accent); color: var(--olive-dark); border-radius: 8px; }
+.meal-recipe-chip button { color: var(--olive-dark); }
+.meal-recipe-chip button:hover { background: #dae6f3; }
+.meal-entry-input { background: var(--white); border-radius: 8px; }
+.meal-entry-input:focus-visible { outline-color: var(--olive); }
+.recipe-picker-results { background: var(--white); }
+.recipe-picker-results button[aria-selected="true"], .recipe-picker-results button:hover { background: var(--soft-accent); color: var(--olive-dark); }
+.mobile-day-detail h2 { font-family: var(--serif); font-weight: 400; }
+.mobile-meal { background: transparent; }
+.mobile-dish-link h3 { font-family: var(--serif); font-size: 21px; }
+.search-field { background: var(--white); border-radius: 8px; border-color: var(--line); }
+.search-field input { font-size: 14px; }
+.category-tabs { gap: 4px; padding-bottom: 8px; }
+.category-tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; min-height: 44px; color: var(--muted); padding: 10px 12px; }
+.category-tabs button.active { background: transparent; border-color: var(--olive); color: var(--olive-dark); }
+.recipe-results-bar { border-color: var(--line); margin-bottom: 4px; }
+.recipe-results-bar p, .recipe-results-bar select { color: var(--muted); }
+.recipe-list .recipe-card { border-color: var(--line); }
+.recipe-list .recipe-card:hover { background: #f5f7fa; }
+.recipe-list .recipe-card-body { padding: 22px 8px; }
+.recipe-list .recipe-card h2 { font-family: var(--serif); font-size: 25px; font-weight: 400; letter-spacing: -.3px; }
+.recipe-card-body > .eyebrow { color: var(--muted); font-size: 10px; }
+.recipe-page-toolbar { border-bottom: 1px solid var(--line); padding-bottom: 16px; }
+.recipe-intro .eyebrow { color: var(--olive); font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; }
+.recipe-intro h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(39px, 5vw, 68px); line-height: 1.08; letter-spacing: -1.2px; max-width: 850px; overflow-wrap: anywhere; margin: 16px 0 24px; }
+.recipe-content { border-top: 1px solid var(--ink); padding-top: 28px; }
+.recipe-content h2 { font-family: var(--serif); font-size: 29px; font-weight: 400; }
+.ingredient-group h3 { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+.ingredient-check { border-bottom: 1px solid #e8ecf1; }
+.ingredient-check input { accent-color: var(--olive); }
+.method-step { margin-bottom: 22px; }
+.method-step::marker { color: var(--olive); font-family: var(--serif); font-size: 21px; }
+.kitchen-note { background: #f4f6f9; border-radius: 10px; border-left: 2px solid #8da6c0; margin-top: 28px; }
+.kitchen-note p { color: var(--muted); }
+.recipe-history { color: var(--muted); }
+.screen-awake[aria-checked="true"] .switch-track { background: var(--olive); }
+.modal { background: var(--paper); border-radius: 16px; box-shadow: 0 18px 90px #20273333; }
+.modal-head h2 { font-family: var(--serif); font-size: 28px; font-weight: 400; }
+.editor-form input, .editor-form textarea, .editor-form select { border-radius: 8px; background: var(--white); }
+.bottom-nav { background: #fffffff5; }
+.bottom-nav a { color: var(--muted); }
+.bottom-nav a.active { color: var(--olive); }
+.bottom-nav svg { stroke-width: 1.5; }
+.page-footer { color: var(--muted); font-family: var(--serif); font-style: italic; font-size: 13px; }
+.analytics-period select { background: var(--white); color: var(--ink); border-radius: 8px; }
+.analytics-card { background: transparent; border-radius: 12px; border-color: var(--line); }
+.analytics-card h2 { font-family: var(--serif); font-size: 23px; font-weight: 400; }
+.analytics-total strong, .analytics-metric > strong { font-family: var(--serif); font-weight: 400; color: var(--ink); }
+.analytics-total strong { font-size: 35px; }
+.analytics-stack { height: 20px; border-radius: 1px; }
+.analytics-actual, .analytics-empty { background: #f3f5f8; border-radius: 10px; }
+.analytics-actual strong { font-family: var(--serif); font-size: 28px; font-weight: 400; }
+.analytics-actual > div:first-child strong { font-family: "DM Sans", sans-serif; font-size: 12px; }
+.analytics-metrics { gap: 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); }
+.analytics-metric { border: 0; border-bottom: 1px solid var(--line); padding: 20px 14px; }
+.analytics-metric:nth-child(odd) { border-right: 1px solid var(--line); }
+.analytics-metric:nth-last-child(-n+2) { border-bottom: 0; }
+.analytics-metric > svg { color: var(--olive); stroke-width: 1.4; }
+.analytics-metric > strong { font-size: 40px; }
+.analytics-metric h2 { font-family: "DM Sans", sans-serif; font-size: 12px; font-weight: 500; }
+.analytics-ranking li { border-color: var(--line); }
+.analytics-ranking a { font-family: var(--serif); font-size: 19px; }
+.analytics-ranking a span { font-family: "DM Sans", sans-serif; }
+.analytics-ranking a:hover { color: var(--olive); }
+.analytics-rank { color: var(--olive); }
+.analytics-track { background: #edf0f5; border-radius: 0; }
+.analytics-track span { background: #9cb2ca; border-radius: 0; }
+@media (min-width: 700px) {
+  .analytics-metric { border: 0; border-right: 1px solid var(--line); padding: 24px 20px; }
+  .analytics-metric:last-child { border-right: 0; }
+}
+@media (min-width: 900px) {
+  .sidebar { padding-top: 40px; }
+  .workspace-topbar { height: 64px; }
+  main { padding-top: 38px; }
+  .page-heading { align-items: flex-end; }
+  .calendar-day:hover { background: var(--white); }
+  .cell-meal, .cell-meal.note-meal, .cell-meal.meal-at-home { background: #dfeaf7; border-color: #537ca8; border-radius: 0 8px 8px 0; }
+  .cell-meal.meal-eating-out { background: #fbe3e5; border-color: #b54c57; }
+  .cell-meal.meal-figma { background: #ece0fa; border-color: #8b5cc2; }
+  .cell-meal a, .cell-meal.meal-at-home .meal-label { color: #24476c; }
+  .cell-meal .cell-note, .cell-meal.meal-at-home .cell-note { color: var(--ink); }
+  .cell-meal.meal-eating-out .cell-note, .cell-meal.meal-eating-out .meal-label, .cell-meal.meal-eating-out .meal-setting, .cell-meal.meal-eating-out a { color: #842b39; }
+  .cell-meal.meal-figma .cell-note, .cell-meal.meal-figma .meal-label, .cell-meal.meal-figma .meal-setting, .cell-meal.meal-figma a { color: #542780; }
+  .recipe-list .recipe-card-body { grid-template-columns: minmax(130px, 1fr) minmax(0, 3fr); align-items: baseline; gap: 24px; padding: 25px 12px; }
+  .recipe-list .recipe-card-body > .eyebrow { grid-column: 1; }
+  .recipe-list .recipe-card h2 { grid-column: 2; font-size: 29px; margin: 0; }
+  .recipe-content { gap: 54px; }
+  .ingredients-section { border-right: 1px solid var(--line); padding-right: 32px; }
+}
+@media (max-width: 420px) {
+  .site-title { font-size: 18px; }
+  .calendar-toolbar { padding-left: 10px; padding-right: 10px; }
+  .month-controls { gap: 7px; }
+  .month-controls h2 { font-size: 20px; }
+  .calendar-filter { gap: 4px; }
+  .calendar-filter select { font-size: 10px; }
+  .analytics-card-heading { gap: 8px; }
+}
+@media (max-width: 899px) {
+  .workspace-topbar { display: none; }
+}
+
+/* Keep the native select interaction, with room for a consistent inset chevron. */
+:is(.editor-form select, .analytics-period select, .recipe-results-bar select, .calendar-filter select) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23626b78' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+.meal-editor-heading select { min-width: 136px; }
+/* The ring fits inside the scroll area's gutter instead of being cut at its edge. */
+.day-editor-body { padding: 5px; }
+.meal-entry-input:focus-visible {
+  outline: none;
+  border-color: var(--olive);
+  box-shadow: 0 0 0 3px #315b871a;
+}
+@media (forced-colors: active) {
+  :is(.editor-form select, .analytics-period select, .recipe-results-bar select, .calendar-filter select) { appearance: auto; background-image: none; }
+  .meal-entry-input:focus-visible { outline: 2px solid Highlight; outline-offset: 1px; }
+}
+
+/* Dense calendar details need readable type as well as sufficient text contrast. */
+.meal-setting { color: #424e5e; font-size: 11px; }
+.calendar-legend { color: #424e5e; }
+.analytics-footnote, .analytics-metric p { color: var(--muted); font-size: 12px; }
+@media (min-width: 900px) {
+  .cell-meal .meal-label { font-size: 11px; font-weight: 600; }
+  .cell-meal a { font-size: 13px; font-weight: 600; }
+  .cell-meal .cell-note { font-size: 12px; line-height: 1.5; }
+  .away-calendar-event { font-size: 12px; font-weight: 500; }
+  .weekday { font-size: 11px; color: #424e5e; }
+}
+
+.today-label { color: #424e5e; }
+@media (min-width: 900px) {
+  /* All day cells stay white; badges and meal cards carry the color. */
+  .calendar-day.is-today, .calendar-day.selected-day { background: var(--white); }
+  .calendar-day.is-today:hover, .calendar-day.selected-day:hover { background: var(--white); }
+}
+
+.mobile-meal.meal-eating-out .eyebrow { color: #842b39; }
+.mobile-meal.meal-figma .eyebrow { color: #542780; }
+
+.sidebar-account { margin-top: auto; padding-top: 24px; }
+.account-signout {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: left;
+}
+.account-signout:hover { background: #f3f5f8; color: var(--ink); }
+
+.day-date-field { display: grid; gap: 8px; font-size: 13px; font-weight: 500; }
+.day-date-field input { min-height: 44px; width: 100%; }
+.day-date-help { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: -12px; }
+
+.month-controls h2 { width: 220px; flex: 0 0 220px; white-space: nowrap; }
+@media (max-width: 699px) {
+  .calendar-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 8px; }
+  .month-controls { display: contents; }
+  .month-controls h2 { grid-column: 1; grid-row: 1; width: 180px; font-size: 20px; }
+  .month-arrows { grid-column: 2; grid-row: 1; }
+  .today-button { grid-column: 1; grid-row: 2; justify-self: start; }
+  .calendar-filter { grid-column: 2; grid-row: 2; justify-self: end; }
+}

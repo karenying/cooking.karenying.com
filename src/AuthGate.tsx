@@ -1,8 +1,17 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { LogOut } from "lucide-react";
 export const WriteSafety = createContext({ begin: () => {}, end: () => {} });
+const AccountActions = createContext<{ signOut: () => void; disabled: boolean; busy: boolean } | null>(null);
+export function SignOutButton() {
+  const account = useContext(AccountActions);
+  if (!account) return null;
+  return <button className="account-signout" disabled={account.disabled} onClick={account.signOut}>
+    <LogOut size={17} aria-hidden="true" />{account.busy ? "Signing out…" : "Sign out"}
+  </button>;
+}
 export function AuthGate({ children }: { children: ReactNode }) {
   const [writes, setWrites] = useState(0);
   const [session, setSession] = useState<Session | null>(null);
@@ -57,9 +66,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
   if (!ready || (session && checking && !allowed)) return <main className="connection-card" role="status">Checking cookbook access…</main>;
   if (session && allowed) return <>
-    <div className="connection-bar"><span>{session.user.email}</span><button className="text-button" disabled={busy || writes > 0} onClick={() => void signOut()}>Sign out</button></div>
     {error && <p className="storage-warning" role="alert">{error}</p>}
-    <WriteSafety.Provider value={{ begin: () => setWrites(n => n + 1), end: () => setWrites(n => Math.max(0,n - 1)) }}><div key={session.user.id}>{children}</div></WriteSafety.Provider>
+    <WriteSafety.Provider value={{ begin: () => setWrites(n => n + 1), end: () => setWrites(n => Math.max(0,n - 1)) }}><AccountActions.Provider value={{ signOut: () => void signOut(), disabled: busy || writes > 0, busy }}><div key={session.user.id}>{children}</div></AccountActions.Provider></WriteSafety.Provider>
   </>;
   return <main className="connection-card">
     <h1>Your cookbook.</h1>

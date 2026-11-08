@@ -26,7 +26,7 @@ import {
 import type { AwayEvent, Meal, Recipe } from "./data";
 import { awayOnDate, mealSettingClass, mealSettingLabel, validDateRange } from "./calendar";
 import type { CookbookStore } from "./Connection";
-import { AuthGate } from "./AuthGate";
+import { AuthGate, SignOutButton } from "./AuthGate";
 import { useRecipeCatalogue } from "./useRecipeCatalogue";
 import { useCalendarCatalogue } from "./useCalendarCatalogue";
 import { calendarRecipeCatalogue, legacyRecipeIds } from "./recipe-catalogue";
@@ -133,38 +133,51 @@ function FoodImage({
   );
 }
 
-function DayEditor({ date, meals, recipes, initialDish, save, close, awayEvents, editAway, addAway }: {
+function DayEditor({ date: initialDate, meals, recipes, initialDish, save, close, awayEvents, editAway, addAway }: {
   awayEvents: AwayEvent[];
   editAway: (event: AwayEvent) => void;
-  addAway: () => void;
+  addAway: (date: string) => void;
   date: string;
   meals: Meal[];
   recipes: Recipe[];
   initialDish?: string;
-  save: (meals: Meal[]) => void;
+  save: (date: string, meals: Meal[]) => void;
   close: () => void;
 }) {
-  const [entries, setEntries] = useState<Meal[]>(() => {
+  const [date, setDate] = useState(initialDate);
+  function entriesForDate(date: string): Meal[] {
     const existing = meals.filter((meal) => meal.date === date);
     return (["Lunch", "Dinner"] as const).flatMap((type) => {
       const matches = existing.filter((meal) => meal.type === type);
       const rows = matches.length ? matches : [{ id: crypto.randomUUID(), date, type, dishes: [], note: "" }];
       return rows.map((row, i) => ({ ...row, setting: row.setting || "home",
-        ...(initialDish && type === "Dinner" && i === 0 ? { dishes: [...new Set([...row.dishes, initialDish])] } : {}) }));
+        ...(initialDish && date === initialDate && type === "Dinner" && i === 0 ? { dishes: [...new Set([...row.dishes, initialDish])] } : {}) }));
     });
-  });
-  function update(id: string, change: Partial<Meal>) {
-    setEntries((current) => current.map((entry) => entry.id === id ? { ...entry, ...change } : entry));
   }
+  const [drafts, setDrafts] = useState<Record<string, Meal[]>>(() => ({ [initialDate]: entriesForDate(initialDate) }));
+  const entries = drafts[date];
+  function update(id: string, change: Partial<Meal>) {
+    setDrafts(current => ({ ...current, [date]: current[date].map(entry => entry.id === id ? { ...entry, ...change } : entry) }));
+  }
+  function changeDate(next: string) {
+    if (!validDateRange(next, next)) return;
+    setDrafts(current => current[next] ? current : { ...current, [next]: entriesForDate(next) });
+    setDate(next);
+  }
+  const hasExistingMeals = meals.some(meal => meal.date === date);
   return (
-    <Modal title={prettyDate(date)} close={close} className="day-editor-modal">
+    <Modal title={hasExistingMeals ? "Edit day" : "Add day"} close={close} className="day-editor-modal">
       <form className="editor-form" onSubmit={(event) => {
         event.preventDefault();
-        save(entries.map((entry) => ({ ...entry, note: entry.note.trim() }))
+        save(date, entries.map((entry) => ({ ...entry, note: entry.note.trim() }))
           .filter((entry) => entry.note || entry.dishes.length || entry.setting === "out" || entry.setting === "figma"));
         close();
       }}>
         <div className="day-editor-body">
+        <label className="day-date-field">Date
+          <input type="date" required value={date} onChange={event => changeDate(event.target.value)} />
+        </label>
+        {hasExistingMeals && <p className="day-date-help">This date already has meals. Saving updates this day.</p>}
         <div className="day-away-section">
           {awayOnDate(awayEvents, date).length > 0 && <p className="section-help">You’re away on this date. Meal entries below are optional.</p>}
           {awayOnDate(awayEvents, date).map((event) => (
@@ -172,7 +185,7 @@ function DayEditor({ date, meals, recipes, initialDish, save, close, awayEvents,
               Away · {event.title} <span>Edit event</span>
             </button>
           ))}
-          <button type="button" className="text-button" onClick={addAway}>Add away / vacation event</button>
+          <button type="button" className="text-button" onClick={() => addAway(date)}>Add away / vacation event</button>
         </div>
         {entries.map((entry, index) => (
           <section className="day-editor-meal" key={entry.id}>
@@ -297,7 +310,7 @@ function RecipeEditor({
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Something worth making again"
+            placeholder="Dish name"
           />
         </label>
         <div className="form-row">
@@ -411,10 +424,6 @@ function Calendar({
     <>
       <header className="page-heading">
         <div>
-          <span className="eyebrow">
-            <span className="tiny-line" />
-            THE EVERYDAY, WELL FED
-          </span>
           <h1>
             Calendar
           </h1>
@@ -424,10 +433,10 @@ function Calendar({
         <button className="secondary-button" onClick={() => addAway(selected)}>Add away event</button>
         <button
           className="primary-button heading-action"
-          onClick={() => addMeal(selected)}
+          onClick={() => addMeal(TODAY)}
         >
           <Plus size={18} />
-          Edit day
+          Add day
         </button>
         </div>
       </header>
@@ -609,7 +618,6 @@ function Calendar({
       <section className="mobile-day-detail" aria-label="Selected day meals">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">ON THE MENU</span>
             <h2>
               {parseDate(selected).toLocaleDateString("en-US", {
                 weekday: "long",
@@ -668,14 +676,14 @@ function Calendar({
             <Leaf size={25} strokeWidth={1.3} />
             <p>{awayOnDate(awayEvents, selected).length ? "No meals added while away." : "No meals planned."}</p>
             <button className="text-button" onClick={() => addMeal(selected)}>
-              Edit day
+              Add day
             </button>
           </div>
         )}
       </section>
       {!hasMeals && !awayEvents.some((event) => event.startDate <= dateKey(last) && event.endDate >= dateKey(first)) && (
         <p className="month-empty">
-          A fresh month. Use the + in any day to start planning.
+          No meals recorded this month. Use + to add a meal.
         </p>
       )}
     </>
@@ -715,10 +723,6 @@ function RecipeIndex({
     <>
       <header className="page-heading">
         <div>
-          <span className="eyebrow">
-            <span className="tiny-line" />
-            TRIED, LOVED, MADE AGAIN
-          </span>
           <h1>
             Recipes
           </h1>
@@ -1085,6 +1089,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
         </button>
       </header>
       <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
+        <a className="journal-masthead" href="#/calendar"><span>At home.</span></a>
         <nav aria-label="Main navigation">
           <a
             href="#/calendar"
@@ -1107,6 +1112,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
             <BarChart3 size={19} />Analytics
           </a>
         </nav>
+        <div className="sidebar-account"><SignOutButton /></div>
       </aside>
       {menuOpen && (
         <button
@@ -1118,10 +1124,6 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
       <div className="workspace">
         <div className="workspace-topbar">
           <a className="site-title" href="#/calendar">cooking.karenying.com</a>
-          <span className="prototype-badge">
-            <i />
-            {catalogue.loading ? "Loading recipes…" : "Recipes from Supabase"}
-          </span>
         </div>
         <main id="main-content">
           {recipeSaved && <p role="status" className="recipe-save-notice">Recipe saved.</p>}
@@ -1168,10 +1170,6 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
               editAway={(event) => setAwayEditor({ date: event.startDate, event })}
             />
           )}
-          <footer className="page-footer">
-            
-            <span>Shared recipes and calendar · saves to Supabase</span>
-          </footer>
         </main>
       </div>
       <nav className="bottom-nav" aria-label="Mobile navigation">
@@ -1181,7 +1179,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
         </a>
         <button
           className="mobile-add"
-          aria-label="Edit day"
+          aria-label="Add day"
           onClick={() => addMeal(TODAY)}
         >
           <Plus size={25} />
@@ -1197,9 +1195,9 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
       {editor && (
         <DayEditor key={editor.date} date={editor.date} meals={meals} recipes={calendarRecipes}
           initialDish={editor.creating ? editor.meal?.dishes[0] : undefined}
-          save={(entries) => setMeals((current) => [...current.filter((meal) => meal.date !== editor.date), ...entries])}
+          save={(date, entries) => setMeals((current) => [...current.filter((meal) => meal.date !== date), ...entries])}
           awayEvents={awayEvents}
-          addAway={() => setAwayEditor({ date: editor.date, event: null })}
+          addAway={(date) => setAwayEditor({ date, event: null })}
           editAway={(event) => setAwayEditor({ date: event.startDate, event })}
           close={() => setEditor(null)} />
       )}

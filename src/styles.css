@@ -1529,9 +1529,6 @@ main {
     padding: 0;
     line-height: 1.5;
   }
-  .meal-label:hover {
-    text-decoration: underline;
-  }
   .cell-meal a {
     font-size: 10px;
     font-weight: 500;
@@ -1991,7 +1988,7 @@ h1, h2 { font-weight: 500; }
 .day-dish-links { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .day-dish-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 5px; background: #e8f0fe; color: #174ea6; }
 .day-dish-links select { width: auto; max-width: 100%; font-size: 13px; }
-@media (min-width: 900px) { .calendar-day { cursor: text; } .calendar-day:hover { background: #f8faff; } }
+@media (min-width: 900px) { .calendar-day { cursor: pointer; } .calendar-day:hover { background: #f8faff; } }
 
 /* Connection UI is shared by phone and desktop layouts. */
 .connection-card {

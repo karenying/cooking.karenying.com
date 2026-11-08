@@ -15,12 +15,12 @@ export function AnalyticsPage({ meals, awayEvents, recipes }: { meals: Meal[]; a
   const metrics = [
     { icon: ChefHat, value: stats.counts.cooked + stats.counts.mix, label: "Days with a home meal", note: "Cooked + mixed days" },
     { icon: Flame, value: stats.longestStreak, label: "Longest home streak", note: "Consecutive days with a home meal" },
-    { icon: Repeat2, value: stats.dishes.length, label: "Dishes in rotation", note: "Distinct linked dishes at home" },
-    { icon: Globe2, value: stats.cuisines.filter(c => c.name !== "Unspecified").length, label: "Cuisines explored", note: "From your linked dishes" },
+    { icon: Repeat2, value: stats.dishes.length, label: "Distinct dishes", note: "Distinct linked dishes at home" },
+    { icon: Globe2, value: stats.cuisines.filter(c => c.name !== "Unspecified").length, label: "Cuisines", note: "From your linked dishes" },
   ];
   return <div className="analytics-page">
     <header className="analytics-heading">
-      <div><h1>Analytics</h1><p>A little look at life around the table.</p></div>
+      <div><h1>Analytics</h1></div>
       <label className="analytics-period">Date range<select value={period} onChange={event => setPeriod(event.target.value)}>
         <option value="all">All time</option><option value="year">This year</option><option value="month">This month</option>
       </select></label>
@@ -39,15 +39,15 @@ export function AnalyticsPage({ meals, awayEvents, recipes }: { meals: Meal[]; a
       </div>
       <details className="analytics-method"><summary>How these numbers work</summary><p>Each recorded date counts once. Home + eating out makes a mixed day; away events take priority, including both end dates. Overlapping trips count once. Figma lunches are excluded; a day with only Figma is left out. Missing dates and future plans are excluded. “Cooked” uses the At home setting, which can include leftovers. Percentages are rounded.</p><p>Your spreadsheet reference had 439 cooked, 28 ate out, 134 mix and 242 away days (843 total), giving an actual split of 60% / 11% / 29%. This page recalculates from the calendar, so totals may differ from that snapshot.</p></details>
     </section>
-    {!stats.total && <div className="analytics-empty"><h2>A fresh page at the table</h2><p>Try a wider date range, or record a meal to start seeing your patterns.</p><a className="text-link" href="#/calendar">Open calendar →</a></div>}
+    {!stats.total && <div className="analytics-empty"><h2>No recorded days</h2><p>Choose a wider date range or add a meal to the calendar.</p><a className="text-link" href="#/calendar">Open calendar →</a></div>}
     <div className="analytics-metrics">{metrics.map(({ icon: Icon, value, label, note }) => <section className="analytics-card analytics-metric" key={label}><Icon size={20} aria-hidden="true" /><strong>{value}</strong><h2>{label}</h2><p>{note}</p></section>)}</div>
     <div className="analytics-grid">
-      <section className="analytics-card" aria-labelledby="rotation-title"><div className="analytics-card-heading"><div><h2 id="rotation-title">The repeat favorites</h2><p>The dishes that keep making a comeback.</p></div><Repeat2 size={20} aria-hidden="true" /></div>
-        {stats.dishes.length ? <ol className="analytics-ranking">{stats.dishes.slice(0, 5).map(({ recipe, count }, index) => <li key={recipe.id}><span className="analytics-rank">{String(index + 1).padStart(2, "0")}</span><a href={`#/recipes/${recipe.id}`}>{recipe.name}<span>{recipe.cuisine || "Unspecified cuisine"}</span></a><strong>{count}<small>{count === 1 ? "meal" : "meals"}</small></strong></li>)}</ol> : <p className="analytics-empty-note">Link dishes to home meals to find your repeat favorites.</p>}
+      <section className="analytics-card" aria-labelledby="rotation-title"><div className="analytics-card-heading"><div><h2 id="rotation-title">Most logged dishes</h2><p>Linked dishes in home meals.</p></div><Repeat2 size={20} aria-hidden="true" /></div>
+        {stats.dishes.length ? <ol className="analytics-ranking">{stats.dishes.slice(0, 5).map(({ recipe, count }, index) => <li key={recipe.id}><span className="analytics-rank">{String(index + 1).padStart(2, "0")}</span><a href={`#/recipes/${recipe.id}`}>{recipe.name}<span>{recipe.cuisine || "Unspecified cuisine"}</span></a><strong>{count}<small>{count === 1 ? "meal" : "meals"}</small></strong></li>)}</ol> : <p className="analytics-empty-note">No linked dishes in home meals for this range.</p>}
       </section>
-      <section className="analytics-card" aria-labelledby="cuisine-title"><div className="analytics-card-heading"><div><h2 id="cuisine-title">Your cuisine passport</h2><p>A taste of where your home meals take you.</p></div><Globe2 size={20} aria-hidden="true" /></div>
+      <section className="analytics-card" aria-labelledby="cuisine-title"><div className="analytics-card-heading"><div><h2 id="cuisine-title">Cuisines</h2><p>Linked dish appearances by cuisine.</p></div><Globe2 size={20} aria-hidden="true" /></div>
         <div className="analytics-cuisines">{stats.cuisines.slice(0, 6).map(({ name, count }) => <div key={name}><div><span>{name}</span><strong>{count} <small>dish {count === 1 ? "appearance" : "appearances"}</small></strong></div><div className="analytics-track" aria-hidden="true"><span style={{ width: `${count / stats.cuisines[0].count * 100}%` }} /></div></div>)}</div>
-        {!stats.cuisines.length && <p className="analytics-empty-note">Your linked dishes will fill this passport.</p>}
+        {!stats.cuisines.length && <p className="analytics-empty-note">No cuisine data for this range.</p>}
       </section>
     </div>
     <p className="analytics-footnote">Dish rankings and cuisines count linked dishes in home meals, excluding away dates. Unlinked meal text is included in day totals only. A home meal is a record of eating at home, not proof of cooking from scratch.</p>
