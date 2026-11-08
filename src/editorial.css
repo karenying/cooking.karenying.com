@@ -242,3 +242,12 @@ main { padding-top: 26px; }
   .today-button { grid-column: 1; grid-row: 2; justify-self: start; }
   .calendar-filter { grid-column: 2; grid-row: 2; justify-self: end; }
 }
+
+@media (min-width: 900px) {
+  .calendar-day { --calendar-entry-gap: 10px; }
+  .cell-meals { padding-top: var(--calendar-entry-gap); }
+  .cell-away-events:not(:empty) { margin-top: var(--calendar-entry-gap); }
+}
+@media (min-width: 1200px) {
+  .calendar-day { --calendar-entry-gap: 12px; }
+}
