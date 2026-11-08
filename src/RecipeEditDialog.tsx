@@ -20,7 +20,6 @@ export function RecipeEditDialog({ recipe, save, close }: {
   }, []);
   function dismiss() {
     if (saving.current) return;
-    if (JSON.stringify(recipe) !== JSON.stringify(draft) && !window.confirm("Discard your recipe edits?")) return;
     close();
   }
   async function submit(event: FormEvent) {
@@ -43,7 +42,11 @@ export function RecipeEditDialog({ recipe, save, close }: {
   }
   return <dialog ref={dialog} className="modal recipe-edit-dialog" aria-labelledby="edit-recipe-title"
     onCancel={event => { event.preventDefault(); dismiss(); }}
-    onClick={event => { if (event.target === event.currentTarget) dismiss(); }}>
+    onClick={event => {
+      if (event.target !== event.currentTarget) return;
+      const bounds = event.currentTarget.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dismiss();
+    }}>
     <div className="modal-head">
       <h2 id="edit-recipe-title">Edit recipe</h2>
       <button className="icon-button" aria-label="Close editor" disabled={busy} onClick={dismiss}><X size={21} /></button>

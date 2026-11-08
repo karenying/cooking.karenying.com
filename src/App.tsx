@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
+  BarChart3,
   CalendarDays,
   ChefHat,
   ChevronLeft,
@@ -31,6 +32,7 @@ import { useCalendarCatalogue } from "./useCalendarCatalogue";
 import { calendarRecipeCatalogue, legacyRecipeIds } from "./recipe-catalogue";
 import { MealEntryEditor } from "./MealEntryEditor";
 import { RecipeEditDialog } from "./RecipeEditDialog";
+import { AnalyticsPage } from "./AnalyticsPage";
 import { recipeLabelKey, uniqueRecipeLabels, existingRecipeLabel } from "./recipe-labels";
 
 function go(path: string) {
@@ -82,7 +84,9 @@ function Modal({
       className={`modal ${className}`}
       onCancel={close}
       onClick={(event) => {
-        if (event.target === event.currentTarget) close();
+        if (event.target !== event.currentTarget) return;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) close();
       }}
     >
       <div className="modal-head">
@@ -1031,12 +1035,13 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
   const [menuOpen, setMenuOpen] = useState(false);
   const [undo, setUndo] = useState<Meal | null>(null);
   const isRecipes = route.startsWith("/recipes");
-  const recipeId = route.split("/")[2];
+  const isAnalytics = route === "/analytics";
+  const recipeId = isRecipes ? route.split("/")[2] : undefined;
   const recipe = recipes.find((r) => r.id === recipeId) || calendarRecipes.find(r => r.id === recipeId);
   useEffect(() => {
     setMenuOpen(false);
-    document.title = `${recipe?.name || (isRecipes ? "Recipes" : "Calendar")} — cooking.karenying.com`;
-  }, [route, recipe?.name, isRecipes]);
+    document.title = `${recipe?.name || (isAnalytics ? "Analytics" : isRecipes ? "Recipes" : "Calendar")} — cooking.karenying.com`;
+  }, [route, recipe?.name, isRecipes, isAnalytics]);
   function addMeal(date: string, dish?: string) {
     setEditor({
       date,
@@ -1083,8 +1088,8 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
         <nav aria-label="Main navigation">
           <a
             href="#/calendar"
-            className={!isRecipes ? "active" : ""}
-            aria-current={!isRecipes ? "page" : undefined}
+            className={!isRecipes && !isAnalytics ? "active" : ""}
+            aria-current={!isRecipes && !isAnalytics ? "page" : undefined}
           >
             <CalendarDays size={19} />
             Calendar
@@ -1097,6 +1102,9 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
           >
             <BookOpen size={19} />
             Recipes<span className="nav-count">{recipes.length}</span>
+          </a>
+          <a href="#/analytics" className={isAnalytics ? "active" : ""} aria-current={isAnalytics ? "page" : undefined}>
+            <BarChart3 size={19} />Analytics
           </a>
         </nav>
       </aside>
@@ -1142,6 +1150,8 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
               recipe={{ ...recipe, id: legacyRecipeIds[recipe.id] || recipe.id }}
               meals={meals.map(meal => ({ ...meal, dishes: meal.dishes.map(id => legacyRecipeIds[id] || id) }))}
             />
+          ) : isAnalytics ? (
+            calendar.loading || catalogue.loading ? null : calendar.error || catalogue.error ? <p>Analytics will be available when the calendar and recipes finish loading. Use Retry above to try again.</p> : <AnalyticsPage meals={meals} awayEvents={awayEvents} recipes={calendarRecipes} />
           ) : isRecipes ? (
             <RecipeIndex
               recipes={recipes}
@@ -1165,7 +1175,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
         </main>
       </div>
       <nav className="bottom-nav" aria-label="Mobile navigation">
-        <a href="#/calendar" className={!isRecipes ? "active" : ""}>
+        <a href="#/calendar" className={!isRecipes && !isAnalytics ? "active" : ""}>
           <CalendarDays size={21} />
           <span>Calendar</span>
         </a>
@@ -1179,6 +1189,9 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
         <a href="#/recipes" className={isRecipes ? "active" : ""}>
           <BookOpen size={21} />
           <span>Recipes</span>
+        </a>
+        <a href="#/analytics" className={isAnalytics ? "active" : ""} aria-current={isAnalytics ? "page" : undefined}>
+          <BarChart3 size={21} /><span>Analytics</span>
         </a>
       </nav>
       {editor && (
