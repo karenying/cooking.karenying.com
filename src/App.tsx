@@ -30,6 +30,8 @@ import { useRecipeCatalogue } from "./useRecipeCatalogue";
 import { useCalendarCatalogue } from "./useCalendarCatalogue";
 import { calendarRecipeCatalogue, legacyRecipeIds } from "./recipe-catalogue";
 import { MealEntryEditor } from "./MealEntryEditor";
+import { RecipeEditDialog } from "./RecipeEditDialog";
+import { recipeLabelKey, uniqueRecipeLabels, existingRecipeLabel } from "./recipe-labels";
 
 function go(path: string) {
   window.location.hash = path;
@@ -687,15 +689,16 @@ function RecipeIndex({
   const [category, setCategory] = useState("All dishes");
   const [cuisine, setCuisine] = useState("All cuisines");
   const [sort, setSort] = useState("A–Z");
-  const categories = [...new Set(recipes.map((r) => r.category))];
+  const categories = uniqueRecipeLabels(recipes.map(r => r.category));
+  const cuisines = uniqueRecipeLabels(recipes.map(r => r.cuisine)).sort();
   const filtered = recipes
     .filter(
       (r) =>
         `${r.name} ${r.cuisine} ${r.category} ${r.ingredients.flatMap((g) => g.items).join(" ")}`
           .toLowerCase()
           .includes(query.toLowerCase()) &&
-        (category === "All dishes" || r.category === category) &&
-        (cuisine === "All cuisines" || r.cuisine === cuisine),
+        (category === "All dishes" || recipeLabelKey(r.category) === recipeLabelKey(category)) &&
+        (cuisine === "All cuisines" || recipeLabelKey(r.cuisine) === recipeLabelKey(cuisine)),
     )
     .sort((a, b) =>
       sort === "Quickest"
@@ -746,7 +749,7 @@ function RecipeIndex({
       <div className="category-tabs" aria-label="Recipe categories">
         {["All dishes", ...categories].map((c) => (
           <button
-            className={category === c ? "active" : ""}
+            className={recipeLabelKey(category) === recipeLabelKey(c) ? "active" : ""}
             key={c}
             onClick={() => setCategory(c)}
           >
@@ -767,7 +770,7 @@ function RecipeIndex({
               onChange={(e) => setCuisine(e.target.value)}
             >
               <option>All cuisines</option>
-              {[...new Set(recipes.map((r) => r.cuisine))].sort().map((c) => (
+              {cuisines.map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </select>
@@ -823,10 +826,15 @@ function RecipeIndex({
 function RecipePage({
   recipe,
   meals,
+  edit,
+  editingDisabled,
 }: {
   recipe: Recipe;
   meals: Meal[];
+  edit: () => void;
+  editingDisabled: boolean;
 }) {
+  const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [wake, setWake] = useState(false);
   const [wakeMessage, setWakeMessage] = useState("");
   const lock = useRef<{
@@ -875,10 +883,10 @@ function RecipePage({
   }
   return (
     <div className="recipe-detail">
-      <a href="#/recipes" className="back-link">
-        <ArrowLeft size={16} />
-        Back to recipes
-      </a>
+      <div className="recipe-page-toolbar">
+        <a href="#/recipes" className="back-link"><ArrowLeft size={16} />Back to recipes</a>
+        <button className="text-button" onClick={edit} disabled={editingDisabled}>Edit recipe</button>
+      </div>
       <div className="recipe-hero">
         <div className="recipe-intro">
           <span className="eyebrow">
@@ -915,9 +923,24 @@ function RecipePage({
               <div className="ingredient-group" key={groupIndex}>
                 <h3>{group.name}</h3>
                 <ul className="ingredient-list">
-                  {group.items.map((item, i) => (
-                    <li className="ingredient" key={i}>{item}</li>
-                  ))}
+                  {group.items.map((item, i) => {
+                    const id = `${groupIndex}-${i}`;
+                    return (
+                      <li className="ingredient" key={i}>
+                        <label className="ingredient-check">
+                          <input
+                            type="checkbox"
+                            checked={!!checkedIngredients[id]}
+                            onChange={(event) => {
+                              const checked = event.currentTarget.checked;
+                              setCheckedIngredients(current => ({ ...current, [id]: checked }));
+                            }}
+                          />
+                          <span>{item.replace(/^\s*[☐☑☒□▢]\uFE0F?\s*/u, "")}</span>
+                        </label>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))
@@ -1003,6 +1026,8 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
   const [awayEditor, setAwayEditor] = useState<{ date: string; event: AwayEvent | null } | null>(null);
   const [removedAway, setRemovedAway] = useState<AwayEvent | null>(null);
   const [addingRecipe, setAddingRecipe] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [recipeSaved, setRecipeSaved] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [undo, setUndo] = useState<Meal | null>(null);
   const isRecipes = route.startsWith("/recipes");
@@ -1091,6 +1116,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
           </span>
         </div>
         <main id="main-content">
+          {recipeSaved && <p role="status" className="recipe-save-notice">Recipe saved.</p>}
           {catalogue.error && <div className="storage-warning" role="alert">Recipes couldn’t load: {catalogue.error} <button className="text-button" onClick={catalogue.retry}>Retry recipes</button></div>}
           {catalogue.loading && <p role="status">Loading recipes from Supabase…</p>}
           {calendar.error && <div className="storage-warning" role="alert">Calendar couldn’t load: {calendar.error} <button className="text-button" onClick={calendar.retry}>Retry calendar</button></div>}
@@ -1111,6 +1137,8 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
           ) : recipe ? (
             <RecipePage
               key={recipe.id}
+              editingDisabled={catalogue.loading || catalogue.pending || !!catalogue.error || !!catalogue.saveError}
+              edit={() => { setRecipeSaved(false); setEditingRecipe(structuredClone({ ...recipe, id: legacyRecipeIds[recipe.id] || recipe.id })); }}
               recipe={{ ...recipe, id: legacyRecipeIds[recipe.id] || recipe.id }}
               meals={meals.map(meal => ({ ...meal, dishes: meal.dishes.map(id => legacyRecipeIds[id] || id) }))}
             />
@@ -1170,9 +1198,21 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
         <button onClick={() => { setAwayEvents((current) => [...current, removedAway]); setRemovedAway(null); }}>Undo</button>
         <button aria-label="Dismiss notification" onClick={() => setRemovedAway(null)}><X size={15} /></button>
       </div>}
+      {editingRecipe && <RecipeEditDialog recipe={editingRecipe} save={async updated => {
+        await catalogue.saveItem({
+          ...updated,
+          category: existingRecipeLabel(updated.category, recipes.map(r => r.category)),
+          cuisine: existingRecipeLabel(updated.cuisine, recipes.map(r => r.cuisine)),
+        });
+        setRecipeSaved(true);
+      }} close={() => setEditingRecipe(null)} />}
       {addingRecipe && (
         <RecipeEditor
-          save={(recipe) => setRecipes((current) => [...current, recipe])}
+          save={(recipe) => setRecipes((current) => [...current, {
+            ...recipe,
+            category: existingRecipeLabel(recipe.category, current.map(r => r.category)),
+            cuisine: existingRecipeLabel(recipe.cuisine, current.map(r => r.cuisine)),
+          }])}
           close={() => setAddingRecipe(false)}
         />
       )}

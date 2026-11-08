@@ -52,7 +52,7 @@ export function useCloudItems<T extends { id: string }>(config: Config<T>) {
   const items = applyOverlay(remote, overlay);
   const current = useRef(items); current.current = items;
   async function save(changes: CloudChange[]) {
-    if (locked.current) return;
+    if (locked.current) return "Another save is still in progress.";
     locked.current = true; safety.begin(); setPending(true); setSaveError(""); failed.current = changes;
     try {
       const { error } = await supabase!.rpc("save_cookbook_changes", { changes });
@@ -65,8 +65,25 @@ export function useCloudItems<T extends { id: string }>(config: Config<T>) {
       const ids = committedIds.current!;
       committedIds.current = null;
       setOverlay(c => ({ upserts: Object.fromEntries(Object.entries(c.upserts).filter(([id]) => !ids.has(id))), deleted: c.deleted.filter(id => !ids.has(id)) }));
-    } catch (error) { if (active.current) setSaveError((error as {message?: string}).message || "Couldn’t save changes."); }
+      return null;
+    } catch (error) {
+      const message = (error as {message?: string}).message || "Couldn’t save changes.";
+      if (active.current) setSaveError(message);
+      return message;
+    }
     finally { locked.current = false; safety.end(); if (active.current) setPending(false); }
+  }
+  async function saveItem(item: T) {
+    if (loading || error) throw new Error("Wait for shared data to load before saving.");
+    if (locked.current || failed.current || committedIds.current) throw new Error("Resolve the existing save error or wait for the current save before editing.");
+    const changes = [{ table: config.table, id: item.id, expected_updated_at: versions.current[item.id] || null, data: config.encode(item) }];
+    // Keep form edits in the editor until the database confirms the save.
+    const message = await save(changes);
+    if (message && failed.current) {
+      failed.current = null;
+      setSaveError("");
+      throw new Error(message);
+    }
   }
   function setItems(update: SetStateAction<T[]>) {
     if (locked.current || loading || failed.current) return;
@@ -105,5 +122,5 @@ export function useCloudItems<T extends { id: string }>(config: Config<T>) {
     ];
     if (changes.length) void save(changes);
   }
-  return { items, setItems, syncDrafts, unsyncedCount: Object.keys(overlay.upserts).length + overlay.deleted.length, loading, error, saveError, pending, storageFailed, retry: () => setAttempt(a => a + 1), retrySave, discardFailed };
+  return { items, setItems, saveItem, syncDrafts, unsyncedCount: Object.keys(overlay.upserts).length + overlay.deleted.length, loading, error, saveError, pending, storageFailed, retry: () => setAttempt(a => a + 1), retrySave, discardFailed };
 }
