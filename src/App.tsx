@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
 import {
   ArrowLeft,
@@ -33,6 +33,7 @@ import { calendarRecipeCatalogue, legacyRecipeIds } from "./recipe-catalogue";
 import { MealEntryEditor } from "./MealEntryEditor";
 import { RecipeEditDialog } from "./RecipeEditDialog";
 import { AnalyticsPage } from "./AnalyticsPage";
+import { cookingAnalytics } from "./analytics";
 import { recipeLabelKey, uniqueRecipeLabels, existingRecipeLabel } from "./recipe-labels";
 
 function go(path: string) {
@@ -692,15 +693,23 @@ function Calendar({
 
 function RecipeIndex({
   recipes,
+  meals,
+  awayEvents,
   addRecipe,
 }: {
   recipes: Recipe[];
+  meals: Meal[];
+  awayEvents: AwayEvent[];
   addRecipe: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All dishes");
   const [cuisine, setCuisine] = useState("All cuisines");
-  const [sort, setSort] = useState("A–Z");
+  const [sort, setSort] = useState("Most popular");
+  const popularity = useMemo(() => new Map(cookingAnalytics(
+    meals.map(meal => ({ ...meal, dishes: meal.dishes.map(id => legacyRecipeIds[id] || id) })),
+    awayEvents, recipes, "0001-01-01", TODAY,
+  ).dishes.map(({ recipe, count }) => [recipe.id, count])), [meals, awayEvents, recipes]);
   const categories = uniqueRecipeLabels(recipes.map(r => r.category));
   const cuisines = uniqueRecipeLabels(recipes.map(r => r.cuisine)).sort();
   const filtered = recipes
@@ -713,11 +722,13 @@ function RecipeIndex({
         (cuisine === "All cuisines" || recipeLabelKey(r.cuisine) === recipeLabelKey(cuisine)),
     )
     .sort((a, b) =>
-      sort === "Quickest"
-        ? a.time - b.time
-        : sort === "Z–A"
-          ? b.name.localeCompare(a.name)
-          : a.name.localeCompare(b.name),
+      sort === "Most popular"
+        ? (popularity.get(b.id) || 0) - (popularity.get(a.id) || 0) || a.name.localeCompare(b.name)
+        : sort === "Quickest"
+          ? a.time - b.time
+          : sort === "Z–A"
+            ? b.name.localeCompare(a.name)
+            : a.name.localeCompare(b.name),
     );
   return (
     <>
@@ -786,6 +797,7 @@ function RecipeIndex({
           <label>
             <span className="sr-only">Sort recipes</span>
             <select value={sort} onChange={(e) => setSort(e.target.value)}>
+              <option>Most popular</option>
               <option>A–Z</option>
               <option>Z–A</option>
               <option>Quickest</option>
@@ -1157,6 +1169,8 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
           ) : isRecipes ? (
             <RecipeIndex
               recipes={recipes}
+              meals={meals}
+              awayEvents={awayEvents}
               addRecipe={() => setAddingRecipe(true)}
             />
           ) : (

@@ -2,7 +2,7 @@
 
 ## Current state
 
-Google OAuth is enabled in the hosted Supabase project. The whole app is wrapped in `AuthGate`; no catalogue hooks mount until `cookbook_access()` confirms access. Karen confirmed a real Google login opens the cookbook. The two requested Gmail addresses are stored as private configuration in `app_private.cookbook_allowlist`, not bundled into JavaScript or committed as seed data.
+Google OAuth is enabled in the hosted Supabase project. The whole app is wrapped in `AuthGate`. A successful `cookbook_access()` result is cached as a UI startup hint for up to five minutes, capped by the current token expiry. Without a valid matching-user hint, no catalogue hooks mount until a fresh access check succeeds. Database RLS still checks the allowlist on every read and write, including during that cache window. Karen confirmed a real Google login opens the cookbook. The two requested Gmail addresses are stored as private configuration in `app_private.cookbook_allowlist`, not bundled into JavaScript or committed as seed data.
 
 The database checks the signed-in user's confirmed Auth email and a matching **verified Google identity**, joined to the private allowlist. It does not authorize from user-editable JWT metadata. RLS checks every read and write. Both allowed users share the same cookbook; there is no separate per-user recipe/calendar partition.
 
@@ -22,6 +22,8 @@ The database checks the signed-in user's confirmed Auth email and a matching **v
 ## Sessions
 
 The client uses PKCE with persistent sessions and automatic token refresh. Access tokens normally expire after one hour; this does **not** mean signing in every hour. Supabase sessions last indefinitely by default until sign-out, revocation or configured limits. Browser storage clearing can also require signing in again. We did not change the project's token lifetime or add session timeout limits.
+
+The access-check hint lives under `at-home-access-check-v1` in localStorage and contains only a user ID and expiry timestamp. It stores no extra credentials or tokens, expires without sliding on reload, and clears on sign-out or a failed/denied check. Malformed, unavailable or expired storage falls back to the normal server check. Signed-in loads skip the Google-provider settings request. This speeds up reloads; it does not make the app work offline or extend Supabase sessions.
 
 [Supabase session behavior](https://supabase.com/docs/guides/auth/sessions)
 

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { LogOut } from "lucide-react";
+import { cacheAccess, clearCachedAccess, hasCachedAccess } from "./auth-access-cache";
 export const WriteSafety = createContext({ begin: () => {}, end: () => {} });
 const AccountActions = createContext<{ signOut: () => void; disabled: boolean; busy: boolean } | null>(null);
 export function SignOutButton() {
@@ -16,7 +17,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [writes, setWrites] = useState(0);
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
-  const [allowed, setAllowed] = useState(false);
+  const [access, setAccess] = useState<{ userId: string; allowed: boolean } | null>(null);
+  const allowed = !!session && access?.userId === session.user.id && access.allowed;
   const [checking, setChecking] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const [error, setError] = useState("");
@@ -26,7 +28,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
     if (!supabase) { setReady(true); setError("Supabase isn’t configured."); return; }
     let active = true;
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
-      if (active) { setSession(next); setReady(true); if (!next) setAllowed(false); }
+      if (active) {
+        setSession(next); setReady(true);
+        if (!next) { clearCachedAccess(); setAccess(null); }
+        else setAccess(current => current?.userId === next.user.id ? current
+          : hasCachedAccess(next) ? { userId: next.user.id, allowed: true } : null);
+      }
     });
     void supabase.auth.getSession().then(({ error }) => {
       if (active && error) { setError(error.message); setReady(true); }
@@ -37,34 +44,51 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     if (!supabase || !session) return;
+    function restoreRoute() {
+      try {
+        const route = sessionStorage.getItem("at-home-login-route");
+        if (route && /^\/(calendar|recipes|analytics)(\/[^?#]*)?$/.test(route)) window.location.hash = route;
+        sessionStorage.removeItem("at-home-login-route");
+      } catch { /* Optional return-route storage must not block access. */ }
+    }
+    if (hasCachedAccess(session)) {
+      setAccess({ userId: session.user.id, allowed: true });
+      setChecking(false); restoreRoute();
+      return;
+    }
     let active = true; setChecking(true); setError("");
     void supabase.rpc("cookbook_access").then(({ data, error }) => {
       if (!active) return;
-      setAllowed(!error && data === true); setChecking(false);
+      setAccess({ userId: session.user.id, allowed: !error && data === true });
+      setChecking(false);
       if (error) setError(error.message);
-      if (data === true) {
-        const route = sessionStorage.getItem("at-home-login-route");
-        if (route && /^\/(calendar|recipes)(\/[^?#]*)?$/.test(route)) window.location.hash = route;
-        sessionStorage.removeItem("at-home-login-route");
+      if (!error && data === true) { cacheAccess(session); restoreRoute(); }
+      else clearCachedAccess();
+    }, error => {
+      if (active) {
+        clearCachedAccess(); setAccess({ userId: session.user.id, allowed: false });
+        setChecking(false); setError(String(error));
       }
-    }, error => { if (active) { setAllowed(false); setChecking(false); setError(String(error)); } });
+    });
     return () => { active = false; };
-  }, [session?.access_token, attempt]);
+  }, [session?.access_token, session?.user.id, attempt]);
   useEffect(() => {
+    if (!ready || session) return;
     const controller = new AbortController();
     const url = import.meta.env.VITE_SUPABASE_URL; const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     if (url && key) void fetch(url + "/auth/v1/settings", { headers: { apikey: key }, signal: controller.signal })
       .then(r => r.json()).then(data => setGoogleReady(data.external?.google === true))
       .catch(() => { /* Keep sign-in disabled until provider readiness can be confirmed. */ });
     return () => controller.abort();
-  }, [attempt]);
+  }, [ready, session?.user.id, attempt]);
   async function signOut() {
     setBusy(true); setError("");
     try { const { error } = await supabase!.auth.signOut(); if (error) throw error; }
     catch (error) { setError(error instanceof Error ? error.message : "Couldn’t sign out."); }
     finally { setBusy(false); }
   }
-  if (!ready || (session && checking && !allowed)) return <main className="connection-card" role="status">Checking cookbook access…</main>;
+  if (!ready) return <main className="connection-card" aria-busy="true" aria-label="Opening cookbook" />;
+  if (session && !allowed && (checking || access?.userId !== session.user.id)) return <main className="connection-card" role="status">Checking cookbook access…</main>;
   if (session && allowed) return <>
     {error && <p className="storage-warning" role="alert">{error}</p>}
     <WriteSafety.Provider value={{ begin: () => setWrites(n => n + 1), end: () => setWrites(n => Math.max(0,n - 1)) }}><AccountActions.Provider value={{ signOut: () => void signOut(), disabled: busy || writes > 0, busy }}><div key={session.user.id}>{children}</div></AccountActions.Provider></WriteSafety.Provider>
