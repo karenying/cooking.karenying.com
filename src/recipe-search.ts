@@ -49,3 +49,15 @@ export function searchRecipes(recipes: Recipe[], query: string, selectedIds: str
     .sort((a, b) => a.score - b.score || a.recipe.name.localeCompare(b.recipe.name))
     .slice(0, 6).map(({ recipe }) => recipe);
 }
+
+// Index search keeps broad discovery, but title keywords take priority over metadata.
+// The caller applies its selected sort within each relevance group.
+export function recipeIndexSearchRank(recipe: Recipe, query: string) {
+  const term = normalize(query);
+  if (!term) return 0;
+  const tokens = term.split(/\s+/);
+  const name = normalize(recipe.name);
+  if (tokens.every(token => name.includes(token))) return 0;
+  const content = normalize(`${recipe.name} ${recipe.cuisine} ${recipe.category} ${recipe.ingredients.flatMap(group => group.items).join(" ")}`);
+  return tokens.every(token => content.includes(token)) ? 1 : Infinity;
+}

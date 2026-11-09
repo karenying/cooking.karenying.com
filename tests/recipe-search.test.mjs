@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { searchRecipes } from '../src/recipe-search.ts';
+import { searchRecipes, recipeIndexSearchRank } from '../src/recipe-search.ts';
 import { recipes } from '../src/data.ts';
 const names = query => searchRecipes(recipes, query).map(recipe => recipe.name);
 
@@ -46,4 +46,21 @@ test('existing meals become editable chips and prose without changing saved orde
   const content = [{ type: 'text', text: 'With ' }, { type: 'recipe', id: 'thai-red-curry' }, { type: 'text', text: ' tonight' }];
   assert.deepEqual(mealParts({ ...original, content }), content);
   assert.deepEqual(mealParts({ ...original, dishes: [], content }), [content[0], content[2]]);
+});
+
+// Index ranking is separate from fuzzy meal-editor suggestions.
+test('index title matches rank ahead of category and ingredient matches', () => {
+  const dish = (name, category, items = []) => ({ name, category, cuisine: 'International', ingredients: [{name:'Ingredients',items}] });
+  assert.equal(recipeIndexSearchRank(dish('Lamb meatballs', 'Beef & lamb'), 'lamb'), 0);
+  assert.equal(recipeIndexSearchRank(dish('Braised lamb', 'Beef & lamb'), 'lamb'), 0);
+  assert.equal(recipeIndexSearchRank(dish('Beef stew', 'Beef & lamb'), 'lamb'), 1);
+  assert.equal(recipeIndexSearchRank(dish('Meatballs', 'Mains', ['Ground lamb']), 'lamb'), 1);
+  assert.equal(recipeIndexSearchRank(dish('Tofu', 'Tofu & eggs'), 'lamb'), Infinity);
+});
+test('index ranking handles empty searches, case, accents and reordered title keywords', () => {
+  const recipe = { name:'Lamb & mint meatballs', category:'Beef & lamb', cuisine:'Méditerranean', ingredients:[] };
+  assert.equal(recipeIndexSearchRank(recipe, '   '), 0);
+  assert.equal(recipeIndexSearchRank(recipe, '  MEATBALLS lamb '), 0);
+  assert.equal(recipeIndexSearchRank(recipe, 'Mediterranean'), 1);
+  assert.equal(recipeIndexSearchRank(recipe, 'lamb missing'), Infinity);
 });

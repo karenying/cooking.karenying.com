@@ -34,6 +34,7 @@ import { MealEntryEditor } from "./MealEntryEditor";
 import { RecipeEditDialog } from "./RecipeEditDialog";
 import { AnalyticsPage } from "./AnalyticsPage";
 import { cookingAnalytics } from "./analytics";
+import { recipeIndexSearchRank } from "./recipe-search";
 import { recipeLabelKey, uniqueRecipeLabels, existingRecipeLabel } from "./recipe-labels";
 
 function go(path: string) {
@@ -713,23 +714,22 @@ function RecipeIndex({
   const categories = uniqueRecipeLabels(recipes.map(r => r.category));
   const cuisines = uniqueRecipeLabels(recipes.map(r => r.cuisine)).sort();
   const filtered = recipes
+    .map(recipe => ({ recipe, rank: recipeIndexSearchRank(recipe, query) }))
     .filter(
-      (r) =>
-        `${r.name} ${r.cuisine} ${r.category} ${r.ingredients.flatMap((g) => g.items).join(" ")}`
-          .toLowerCase()
-          .includes(query.toLowerCase()) &&
+      ({ recipe: r, rank }) =>
+        Number.isFinite(rank) &&
         (category === "All dishes" || recipeLabelKey(r.category) === recipeLabelKey(category)) &&
         (cuisine === "All cuisines" || recipeLabelKey(r.cuisine) === recipeLabelKey(cuisine)),
     )
-    .sort((a, b) =>
-      sort === "Most popular"
+    .sort(({ recipe: a, rank: aRank }, { recipe: b, rank: bRank }) =>
+      aRank - bRank || (sort === "Most popular"
         ? (popularity.get(b.id) || 0) - (popularity.get(a.id) || 0) || a.name.localeCompare(b.name)
         : sort === "Quickest"
           ? a.time - b.time
           : sort === "Z–A"
             ? b.name.localeCompare(a.name)
-            : a.name.localeCompare(b.name),
-    );
+            : a.name.localeCompare(b.name)),
+    ).map(({ recipe }) => recipe);
   return (
     <>
       <header className="page-heading">
