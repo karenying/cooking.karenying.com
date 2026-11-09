@@ -301,3 +301,9 @@ main { padding-top: 26px; }
   .mobile-meal.meal-eating-out :is(.meal-label, .meal-setting, .cell-note, a) { color: #842b39; }
   .mobile-meal.meal-figma :is(.meal-label, .meal-setting, .cell-note, a) { color: #542780; }
 }
+
+/* Mouse and touch focus should not leave a keyboard focus box on controls. */
+:root[data-focus-input="pointer"] :is(button, a, input, select, textarea, [contenteditable], [tabindex]):focus,
+:root[data-focus-input="pointer"] .pick-dish:focus-within {
+  outline: none;
+}
