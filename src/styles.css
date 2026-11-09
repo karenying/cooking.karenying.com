@@ -14,6 +14,7 @@
   --line: #e0e0e0;
   --orange: #818181;
   --serif: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mobile-nav-safe-space: env(safe-area-max-inset-bottom, 36px);
 }
 * {
   box-sizing: border-box;
@@ -611,16 +612,18 @@ main {
 .inspiration-card:hover .food-image img {
   transform: scale(1.04);
 }
+/* Reserve safe-area space outside the 76px navigation row. Only the bottom
+   offset changes as Chrome's toolbar hides, so the controls never compress. */
 .bottom-nav {
   position: fixed;
-  bottom: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) - var(--mobile-nav-safe-space));
   left: 0;
   right: 0;
   display: flex;
   align-items: center;
   justify-content: space-around;
-  height: 76px;
-  padding-bottom: env(safe-area-inset-bottom);
+  height: calc(76px + var(--mobile-nav-safe-space));
+  padding: 10px 0 calc(10px + var(--mobile-nav-safe-space));
   background: rgba(250, 250, 245, 0.97);
   border-top: 1px solid var(--line);
   z-index: 20;
@@ -2259,3 +2262,8 @@ h1, h2 { font-weight: 500; }
 .recipe-edit-group > button { align-self: flex-start; min-height: 44px; }
 .recipe-edit-dialog .modal-footer { gap: 12px; }
 .recipe-save-notice { margin-bottom: 20px; font-size: 14px; }
+
+@media (max-width: 899px) {
+  main { padding-bottom: calc(100px + var(--mobile-nav-safe-space)); }
+  .undo-toast { bottom: calc(95px + var(--mobile-nav-safe-space)); }
+}

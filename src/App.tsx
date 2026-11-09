@@ -9,7 +9,6 @@ import {
   ChefHat,
   ChevronLeft,
   ChevronRight,
-  CookingPot,
   Leaf,
   Menu,
   Plus,
@@ -106,32 +105,6 @@ function Modal({
       </div>
       {children}
     </dialog>
-  );
-}
-
-function FoodImage({
-  recipe,
-  className = "",
-}: {
-  recipe: Recipe;
-  className?: string;
-}) {
-  const [failed, setFailed] = useState(false);
-  return (
-    <div
-      className={`food-image ${className} ${failed || !recipe.image ? "image-fallback" : ""}`}
-    >
-      {recipe.image && !failed ? (
-        <img
-          src={recipe.image}
-          alt={recipe.name}
-          onError={() => setFailed(true)}
-          loading="lazy"
-        />
-      ) : (
-        <CookingPot size={50} strokeWidth={1} />
-      )}
-    </div>
   );
 }
 
@@ -377,6 +350,25 @@ function RecipeEditor({
   );
 }
 
+function MealCalendarEvent({ meal, recipes, editMeal, mobile = false }: {
+  meal: Meal;
+  recipes: Recipe[];
+  editMeal: (meal: Meal) => void;
+  mobile?: boolean;
+}) {
+  return <div className={`cell-meal ${mobile ? "mobile-meal" : ""} ${meal.dishes.length ? "home-meal" : "note-meal"} meal-${mealSettingClass(meal)}`}>
+    <button className="meal-label"
+      aria-label={`Edit ${meal.type.toLowerCase()} on ${prettyDate(meal.date)}`}
+      onClick={() => editMeal(meal)}>{meal.type}</button>
+    <span className="meal-setting">{mealSettingLabel(meal)}</span>
+    {meal.dishes.map(id => {
+      const dish = recipes.find(recipe => recipe.id === id);
+      return dish && <a href={`#/recipes/${id}`} key={id}>{dish.name}</a>;
+    })}
+    {meal.note && <button className="cell-note" onClick={() => editMeal(meal)}>{meal.note}</button>}
+  </div>;
+}
+
 function Calendar({
   meals,
   recipes,
@@ -555,39 +547,7 @@ function Calendar({
                   </button>)}
                 </div>
                 <div className="cell-meals">
-                  {entries.map((meal) => (
-                    <div
-                      className={`cell-meal ${meal.dishes.length ? "home-meal" : "note-meal"} meal-${mealSettingClass(meal)}`}
-                      key={meal.id}
-                    >
-                      <button
-                        className="meal-label"
-                        aria-label={`Edit ${meal.type.toLowerCase()} on ${prettyDate(key)}`}
-                        onClick={() => editMeal(meal)}
-                      >
-                        {meal.type}
-                      </button>
-                      <span className="meal-setting">{mealSettingLabel(meal)}</span>
-                      {meal.dishes.map((id) => {
-                        const dish = recipes.find((r) => r.id === id);
-                        return (
-                          dish && (
-                            <a href={`#/recipes/${id}`} key={id}>
-                              {dish.name}
-                            </a>
-                          )
-                        );
-                      })}
-                      {meal.note && (
-                        <button
-                          className="cell-note"
-                          onClick={() => editMeal(meal)}
-                        >
-                          {meal.note}
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  {entries.map(meal => <MealCalendarEvent key={meal.id} meal={meal} recipes={recipes} editMeal={editMeal} />)}
                 </div>
                 <button
                   className="mobile-day-target"
@@ -640,39 +600,7 @@ function Calendar({
           {awayOnDate(awayEvents, selected).map((event) => <AwaySummary key={event.id} event={event} edit={() => editAway(event)} />)}
         </div>
         {selectedMeals.length ? (
-          selectedMeals.map((meal) => (
-            <article className={`mobile-meal meal-${mealSettingClass(meal)}`} key={meal.id}>
-              <div className="mobile-meal-heading">
-                <span className="eyebrow">{meal.type} · {mealSettingLabel(meal)}</span>
-                <button className="text-button" onClick={() => editMeal(meal)}>
-                  Edit
-                </button>
-              </div>
-              {meal.dishes.map((id) => {
-                const recipe = recipes.find((r) => r.id === id);
-                return (
-                  recipe && (
-                    <a
-                      className="mobile-dish-link"
-                      href={`#/recipes/${id}`}
-                      key={id}
-                    >
-                      <FoodImage recipe={recipe} />
-                      <div>
-                        <h3>{recipe.name}</h3>
-                        <span>
-                          {recipe.time ? `${recipe.time} min · ` : ""}
-                          {recipe.cuisine}
-                        </span>
-                      </div>
-                      <ChevronRight size={18} />
-                    </a>
-                  )
-                );
-              })}
-              {meal.note && <p className="meal-note">{meal.note}</p>}
-            </article>
-          ))
+          selectedMeals.map(meal => <MealCalendarEvent key={meal.id} meal={meal} recipes={recipes} editMeal={editMeal} mobile />)
         ) : (
           <div className="day-empty">
             <Leaf size={25} strokeWidth={1.3} />
