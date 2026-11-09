@@ -2236,7 +2236,17 @@ h1, h2 { font-weight: 500; }
 .recipe-edit-dialog .modal-footer { gap: 12px; }
 .recipe-save-notice { margin-bottom: 20px; font-size: 14px; }
 
+/* Mobile scrolls the content pane, leaving navigation in normal layout.
+   This avoids iOS Chrome's bottom-fixed toolbar/viewport anchoring defects. */
 @media (max-width: 899px) {
-  main { padding-bottom: calc(100px + var(--mobile-nav-safe-space)); }
+  html:has(.app-shell), body:has(.app-shell) { overflow: hidden; }
+  .cookbook-viewport { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  .cookbook-viewport > .cloud-message { flex: none; }
+  .cookbook-controls { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .app-shell { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .app-shell > .mobile-header { flex: none; }
+  .workspace { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; }
+  .bottom-nav { position: static; flex: none; background: var(--white); backdrop-filter: none; }
+  main { padding-bottom: 24px; }
   .undo-toast { bottom: calc(95px + var(--mobile-nav-safe-space)); }
 }

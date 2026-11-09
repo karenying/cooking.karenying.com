@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
 import {
   ArrowLeft,
@@ -45,11 +45,14 @@ function useRoute() {
   useEffect(() => {
     const update = () => {
       setRoute(window.location.hash.slice(1) || "/calendar");
-      window.scrollTo(0, 0);
     };
     window.addEventListener("hashchange", update);
     return () => window.removeEventListener("hashchange", update);
   }, []);
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+    document.querySelector<HTMLElement>(".workspace")?.scrollTo(0, 0);
+  }, [route]);
   return route;
 }
 const prettyDate = (key: string) =>
@@ -991,7 +994,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
     setMeals((current) => [...current.filter((m) => m.id !== meal.id), meal]);
   }
   return (
-    <>
+    <div className="cookbook-viewport">
     {(catalogue.pending || calendar.pending) && <p className="cloud-message" role="status">Saving to Supabase…</p>}
     {(catalogue.saveError || calendar.saveError) && <div className="storage-warning cloud-message" role="alert">
       <p>Changes haven’t saved: {catalogue.saveError || calendar.saveError}</p>
@@ -1176,6 +1179,6 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
       )}
     </div>
     </fieldset>
-    </>
+    </div>
   );
 }
