@@ -13,7 +13,6 @@ import {
   Menu,
   Plus,
   Search,
-  SlidersHorizontal,
   X,
 } from "lucide-react";
 import {
@@ -391,7 +390,6 @@ function Calendar({
     return new Date(date.getFullYear(), date.getMonth(), 1);
   });
   const [selected, setSelected] = useState(TODAY);
-  const [filter, setFilter] = useState("All meals");
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
   const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
   const cellCount = Math.ceil((first.getDay() + last.getDate()) / 7) * 7;
@@ -400,10 +398,7 @@ function Calendar({
     (_, i) =>
       new Date(month.getFullYear(), month.getMonth(), i - first.getDay() + 1),
   );
-  const visibleMeals = meals.filter(
-    (m) => filter === "All meals" || m.type === filter,
-  );
-  const selectedMeals = visibleMeals
+  const selectedMeals = meals
     .filter((m) => m.date === selected)
     .sort((a, b) => (a.type === b.type ? 0 : a.type === "Lunch" ? -1 : 1));
   function moveMonth(offset: number) {
@@ -470,15 +465,6 @@ function Calendar({
               Today
             </button>
           </div>
-          <label className="calendar-filter">
-            <SlidersHorizontal size={15} />
-            <span className="sr-only">Filter calendar meals</span>
-            <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-              <option>All meals</option>
-              <option>Lunch</option>
-              <option>Dinner</option>
-            </select>
-          </label>
         </div>
         <div
           className="calendar-grid"
@@ -497,7 +483,7 @@ function Calendar({
             const key = dateKey(day);
             const inMonth = day.getMonth() === month.getMonth();
             const dayAwayEvents = awayOnDate(awayEvents, key);
-            const entries = visibleMeals
+            const entries = meals
               .filter((m) => m.date === key)
               .sort((a, b) =>
                 a.type === b.type ? 0 : a.type === "Lunch" ? -1 : 1,
@@ -940,20 +926,6 @@ function RecipePage({
 }
 
 export default function App() {
-  useEffect(() => {
-    const root = document.documentElement;
-    const pointer = () => { root.dataset.focusInput = "pointer"; };
-    const keyboard = (event: KeyboardEvent) => {
-      if (["Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) root.dataset.focusInput = "keyboard";
-    };
-    document.addEventListener("pointerdown", pointer, true);
-    document.addEventListener("keydown", keyboard, true);
-    return () => {
-      document.removeEventListener("pointerdown", pointer, true);
-      document.removeEventListener("keydown", keyboard, true);
-      delete root.dataset.focusInput;
-    };
-  }, []);
   return <AuthGate><LocalCookbook /></AuthGate>;
 }
 

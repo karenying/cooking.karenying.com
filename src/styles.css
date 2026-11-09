@@ -350,21 +350,6 @@ main {
 .today-button:hover {
   background: #efefef;
 }
-.calendar-filter {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  color: #727272;
-}
-.calendar-filter > svg {
-  display: none;
-}
-.calendar-filter select {
-  background: transparent;
-  font-size: 10px;
-  border: 0;
-  padding: 8px 0;
-}
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -1309,12 +1294,6 @@ main {
   .month-controls h2 {
     font-size: 17px;
   }
-  .calendar-filter select {
-    font-size: 12px;
-  }
-  .calendar-filter > svg {
-    display: block;
-  }
   .today-button {
     font-size: 11px;
   }
@@ -1444,12 +1423,6 @@ main {
   }
   .month-arrows .icon-button {
     min-width: 29px;
-  }
-  .calendar-filter {
-    gap: 6px;
-  }
-  .calendar-filter select {
-    font-size: 11px;
   }
   .weekday {
     font-size: 9px;

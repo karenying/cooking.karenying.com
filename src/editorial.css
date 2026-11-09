@@ -160,8 +160,6 @@ main { padding-top: 26px; }
   .calendar-toolbar { padding-left: 10px; padding-right: 10px; }
   .month-controls { gap: 7px; }
   .month-controls h2 { font-size: 20px; }
-  .calendar-filter { gap: 4px; }
-  .calendar-filter select { font-size: 10px; }
   .analytics-card-heading { gap: 8px; }
 }
 @media (max-width: 899px) {
@@ -169,7 +167,7 @@ main { padding-top: 26px; }
 }
 
 /* Keep the native select interaction, with room for a consistent inset chevron. */
-:is(.editor-form select, .analytics-period select, .recipe-results-bar select, .calendar-filter select) {
+:is(.editor-form select, .analytics-period select, .recipe-results-bar select) {
   appearance: none;
   -webkit-appearance: none;
   padding-right: 36px;
@@ -187,7 +185,7 @@ main { padding-top: 26px; }
   box-shadow: 0 0 0 3px #315b871a;
 }
 @media (forced-colors: active) {
-  :is(.editor-form select, .analytics-period select, .recipe-results-bar select, .calendar-filter select) { appearance: auto; background-image: none; }
+  :is(.editor-form select, .analytics-period select, .recipe-results-bar select) { appearance: auto; background-image: none; }
   .meal-entry-input:focus-visible { outline: 2px solid Highlight; outline-offset: 1px; }
 }
 
@@ -240,7 +238,6 @@ main { padding-top: 26px; }
   .month-controls h2 { grid-column: 1; grid-row: 1; width: 180px; font-size: 20px; }
   .month-arrows { grid-column: 2; grid-row: 1; }
   .today-button { grid-column: 1; grid-row: 2; justify-self: start; }
-  .calendar-filter { grid-column: 2; grid-row: 2; justify-self: end; }
 }
 
 @media (min-width: 900px) {
@@ -300,10 +297,4 @@ main { padding-top: 26px; }
   .mobile-meal.meal-figma { background: #ece0fa; border-color: #8b5cc2; }
   .mobile-meal.meal-eating-out :is(.meal-label, .meal-setting, .cell-note, a) { color: #842b39; }
   .mobile-meal.meal-figma :is(.meal-label, .meal-setting, .cell-note, a) { color: #542780; }
-}
-
-/* Mouse and touch focus should not leave a keyboard focus box on controls. */
-:root[data-focus-input="pointer"] :is(button, a, input, select, textarea, [contenteditable], [tabindex]):focus,
-:root[data-focus-input="pointer"] .pick-dish:focus-within {
-  outline: none;
 }
