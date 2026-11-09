@@ -14,7 +14,7 @@
   --line: #e0e0e0;
   --orange: #818181;
   --serif: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --mobile-nav-safe-space: env(safe-area-max-inset-bottom, 36px);
+  --mobile-nav-safe-space: clamp(0px, env(safe-area-inset-bottom, 0px), 36px);
 }
 * {
   box-sizing: border-box;
@@ -612,11 +612,11 @@ main {
 .inspiration-card:hover .food-image img {
   transform: scale(1.04);
 }
-/* Reserve safe-area space outside the 76px navigation row. Only the bottom
-   offset changes as Chrome's toolbar hides, so the controls never compress. */
+/* Keep the control row intact as browser toolbars change the safe area.
+   Anchor directly to the viewport; extra device padding cannot grow unbounded. */
 .bottom-nav {
   position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) - var(--mobile-nav-safe-space));
+  bottom: 0;
   left: 0;
   right: 0;
   display: flex;
