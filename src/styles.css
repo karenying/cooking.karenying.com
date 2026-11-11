@@ -2067,7 +2067,7 @@ h1, h2 { font-weight: 500; }
 .meal-entry-editor { position: relative; }
 .meal-entry-editor[data-suggestions-placement="above"] > .recipe-picker-results {
   position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; z-index: 2;
-  margin: 0; max-height: min(220px, 35dvh); box-shadow: 0 6px 24px #20273326;
+  margin: 0; max-height: min(220px, 25dvh); box-shadow: 0 6px 24px #20273326;
 }
 
 .meal-editor-heading > span { font-weight: 500; }

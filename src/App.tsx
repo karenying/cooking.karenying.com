@@ -18,7 +18,6 @@ import {
 import {
   dateKey,
   parseDate,
-  recipes as seedRecipes,
   TODAY,
 } from "./data";
 import type { AwayEvent, Meal, Recipe } from "./data";
@@ -27,7 +26,7 @@ import type { CookbookStore } from "./Connection";
 import { AuthGate, SignOutButton } from "./AuthGate";
 import { useRecipeCatalogue } from "./useRecipeCatalogue";
 import { useCalendarCatalogue } from "./useCalendarCatalogue";
-import { calendarRecipeCatalogue, legacyRecipeIds } from "./recipe-catalogue";
+import { resolveMealRecipeIds, legacyRecipeIds } from "./recipe-catalogue";
 import { MealEntryEditor } from "./MealEntryEditor";
 import { RecipeEditDialog } from "./RecipeEditDialog";
 import { AnalyticsPage } from "./AnalyticsPage";
@@ -123,7 +122,7 @@ function DayEditor({ date: initialDate, meals, recipes, initialDish, save, close
 }) {
   const [date, setDate] = useState(initialDate);
   function entriesForDate(date: string): Meal[] {
-    const existing = meals.filter((meal) => meal.date === date);
+    const existing = meals.filter((meal) => meal.date === date).map(resolveMealRecipeIds);
     return (["Lunch", "Dinner"] as const).flatMap((type) => {
       const matches = existing.filter((meal) => meal.type === type);
       const rows = matches.length ? matches : [{ id: crypto.randomUUID(), date, type, dishes: [], note: "" }];
@@ -367,8 +366,8 @@ function MealCalendarEvent({ meal, recipes, editMeal, mobile = false }: {
       onClick={() => editMeal(meal)}>{meal.type}</button>
     <span className="meal-setting">{mealSettingLabel(meal)}</span>
     {meal.dishes.map(id => {
-      const dish = recipes.find(recipe => recipe.id === id);
-      return dish && <a href={`#/recipes/${id}`} key={id}>{dish.name}</a>;
+      const dish = recipes.find(recipe => recipe.id === (legacyRecipeIds[id] || id));
+      return dish && <a href={`#/recipes/${dish.id}`} key={id}>{dish.name}</a>;
     })}
     {meal.note && <button className="cell-note" onClick={() => editMeal(meal)}>{meal.note}</button>}
   </div>;
@@ -938,19 +937,13 @@ export default function App() {
 function LocalCookbook() {
   const catalogue = useRecipeCatalogue();
   const { recipes, setRecipes } = catalogue;
-  const [legacyRecipes] = useState<Recipe[]>(() => {
-    try { return JSON.parse(localStorage.getItem("at-home-recipes-v1") || "null") || seedRecipes; }
-    catch { return seedRecipes; }
-  });
-  const calendarRecipes = calendarRecipeCatalogue(recipes, legacyRecipes);
   const calendar = useCalendarCatalogue();
   const { meals, setMeals, awayEvents, setAwayEvents } = calendar;
-  return <Cookbook store={{ recipes, setRecipes, meals, setMeals }} awayEvents={awayEvents} setAwayEvents={setAwayEvents} storageFailed={catalogue.storageFailed || calendar.storageFailed} calendarRecipes={calendarRecipes} catalogue={catalogue} calendar={calendar} />;
+  return <Cookbook store={{ recipes, setRecipes, meals, setMeals }} awayEvents={awayEvents} setAwayEvents={setAwayEvents} storageFailed={catalogue.storageFailed || calendar.storageFailed} catalogue={catalogue} calendar={calendar} />;
 }
 
-function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue, calendar, storageFailed = false }: {
+function Cookbook({ store, awayEvents, setAwayEvents, catalogue, calendar, storageFailed = false }: {
   calendar: ReturnType<typeof useCalendarCatalogue>;
-  calendarRecipes: Recipe[];
   catalogue: ReturnType<typeof useRecipeCatalogue>;
   awayEvents: AwayEvent[];
   setAwayEvents: Dispatch<SetStateAction<AwayEvent[]>>;
@@ -973,7 +966,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
   const isRecipes = route.startsWith("/recipes");
   const isAnalytics = route === "/analytics";
   const recipeId = isRecipes ? route.split("/")[2] : undefined;
-  const recipe = recipes.find((r) => r.id === recipeId) || calendarRecipes.find(r => r.id === recipeId);
+  const recipe = recipes.find((r) => r.id === (legacyRecipeIds[recipeId || ""] || recipeId));
   useEffect(() => {
     setMenuOpen(false);
     document.title = `${recipe?.name || (isAnalytics ? "Analytics" : isRecipes ? "Recipes" : "Calendar")} — cooking.karenying.com`;
@@ -1085,7 +1078,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
               meals={meals.map(meal => ({ ...meal, dishes: meal.dishes.map(id => legacyRecipeIds[id] || id) }))}
             />
           ) : isAnalytics ? (
-            calendar.loading || catalogue.loading ? null : calendar.error || catalogue.error ? <p>Analytics will be available when the calendar and recipes finish loading. Use Retry above to try again.</p> : <AnalyticsPage meals={meals} awayEvents={awayEvents} recipes={calendarRecipes} />
+            calendar.loading || catalogue.loading ? null : calendar.error || catalogue.error ? <p>Analytics will be available when the calendar and recipes finish loading. Use Retry above to try again.</p> : <AnalyticsPage meals={meals.map(resolveMealRecipeIds)} awayEvents={awayEvents} recipes={recipes} />
           ) : isRecipes ? (
             <RecipeIndex
               recipes={recipes}
@@ -1096,7 +1089,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
           ) : (
             <Calendar
               meals={meals}
-              recipes={calendarRecipes}
+              recipes={recipes}
               addMeal={addMeal}
               editMeal={(meal) => setEditor({ date: meal.date, meal })}
               awayEvents={awayEvents}
@@ -1127,7 +1120,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, calendarRecipes, catalogue
         </a>
       </nav>
       {editor && (
-        <DayEditor key={editor.date} date={editor.date} meals={meals} recipes={calendarRecipes}
+        <DayEditor key={editor.date} date={editor.date} meals={meals} recipes={recipes}
           initialDish={editor.creating ? editor.meal?.dishes[0] : undefined}
           save={(date, entries) => setMeals((current) => [...current.filter((meal) => meal.date !== date), ...entries])}
           awayEvents={awayEvents}

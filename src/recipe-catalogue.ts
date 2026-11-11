@@ -1,4 +1,4 @@
-import type { Recipe } from "./data";
+import type { Meal, Recipe } from "./data";
 
 export const recipeColumns = "id,name,description,category,cuisine,cuisine_inferred,original_source,image,preparation_minutes,servings,favorite,ingredients,steps,note";
 export type RecipeRow = {
@@ -19,12 +19,11 @@ export const legacyRecipeIds: Record<string, string> = {
   "ginger-chicken-rice": "menu-g14", "thai-red-curry": "menu-i14", "lamb-meatballs": "menu-f10",
   "pesto-pasta": "menu-b3", "cilantro-wontons": "menu-j5", "tomato-eggs": "menu-c7",
 };
-export function calendarRecipeCatalogue(recipes: Recipe[], legacy: Recipe[]): Recipe[] {
-  const ids = new Set(recipes.map(r => r.id));
-  return [...recipes, ...legacy.filter(r => !ids.has(r.id)).map(r => {
-    const current = recipes.find(item => item.id === legacyRecipeIds[r.id]);
-    return current ? { ...current, id: r.id } : r;
-  })];
+// Resolve old links directly, without adding sample recipes or duplicate aliases.
+export function resolveMealRecipeIds(meal: Meal): Meal {
+  const resolve = (id: string) => legacyRecipeIds[id] || id;
+  return { ...meal, dishes: [...new Set(meal.dishes.map(resolve))],
+    content: meal.content?.map(part => part.type === "recipe" ? { ...part, id: resolve(part.id) } : part) };
 }
 
 export function toRecipeRow(recipe: Recipe): Omit<RecipeRow, never> {

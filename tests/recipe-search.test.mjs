@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { searchRecipes, recipeIndexSearchRank } from '../src/recipe-search.ts';
-import { recipes } from '../src/data.ts';
+const recipes = ['Ginger chicken & rice', 'Thai red curry', 'Lamb meatballs',
+  'Weeknight pesto pasta', 'Chicken cilantro wontons', 'Tomato & egg stir-fry']
+  .map((name, index) => ({ id: `test-${index}`, name }));
 const names = query => searchRecipes(recipes, query).map(recipe => recipe.name);
 
 test('recipe suggestions start at three characters and rank a name prefix first', () => {
