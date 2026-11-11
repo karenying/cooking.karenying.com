@@ -229,7 +229,6 @@ main { padding-top: 26px; }
 
 .day-date-field { display: grid; gap: 8px; font-size: 13px; font-weight: 500; }
 .day-date-field input { min-height: 44px; width: 100%; }
-.day-date-help { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: -12px; }
 
 .month-controls h2 { width: 220px; flex: 0 0 220px; white-space: nowrap; }
 @media (max-width: 699px) {

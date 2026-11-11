@@ -2007,7 +2007,6 @@ h1, h2 { font-weight: 500; }
 .meal-editor-heading select { width: auto; max-width: 70%; min-height: 44px; }
 .day-away-section, .selected-away-events { display: grid; gap: 10px; }
 .day-away-section { padding-bottom: 16px; border-bottom: 1px solid var(--line); }
-.day-away-section > .text-button { justify-self: start; }
 .away-summary {
   display: flex; flex-direction: column; gap: 6px;
   width: 100%; padding: 14px; border-radius: 6px;
@@ -2065,7 +2064,11 @@ h1, h2 { font-weight: 500; }
 .recipe-picker-results button { display: flex; flex-direction: column; gap: 3px; width: 100%; min-height: 48px; padding: 9px 10px; text-align: left; border-radius: 4px; background: transparent; overflow-wrap: anywhere; }
 .recipe-picker-results button[aria-selected="true"], .recipe-picker-results button:hover { background: #e8f0fe; color: #174ea6; }
 .recipe-picker-results small { color: #5f6368; font-size: 11px; }
-.recipe-picker-status { min-height: 16px; margin: 5px 0 0; font-size: 11px; line-height: 1.5; color: #5f6368; }
+.meal-entry-editor { position: relative; }
+.meal-entry-editor[data-suggestions-placement="above"] > .recipe-picker-results {
+  position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; z-index: 2;
+  margin: 0; max-height: min(220px, 35dvh); box-shadow: 0 6px 24px #20273326;
+}
 
 .meal-editor-heading > span { font-weight: 500; }
 .meal-entry-input { width: 100%; min-height: 104px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 6px; background: white; font-size: 16px; line-height: 2; white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; }
@@ -2077,13 +2080,20 @@ h1, h2 { font-weight: 500; }
 .meal-recipe-chip button::before { content: "×"; font-size: 19px; }
 .meal-recipe-chip button:hover { background: #d2e3fc; }
 
-.day-editor-modal { height: min(780px, calc(100dvh - 32px)); overflow: hidden; }
+.day-editor-modal { padding: 20px; overflow: hidden; }
 .day-editor-modal[open] { display: flex; flex-direction: column; }
-.day-editor-modal .modal-head { flex: none; }
-.day-editor-modal > .editor-form { flex: 1; min-height: 0; gap: 16px; }
-.day-editor-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 23px; padding: 3px; }
+.day-editor-modal .modal-head { flex: none; margin-bottom: 14px; }
+.day-date-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; padding-bottom: 20px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
+.day-date-row .day-date-field { min-width: 0; }
+.day-date-row input[type="date"] { min-width: 0; padding-inline: 8px; }
+.day-date-row .day-away-action { min-height: 46px; padding: 8px; gap: 6px; }
+.day-editor-modal > .editor-form { flex: 0 1 auto; min-height: 0; gap: 12px; }
+.day-editor-body { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 14px; padding: 3px; }
 .day-editor-body > * { flex-shrink: 0; }
-.day-editor-modal .modal-footer { flex: none; }
+.day-editor-modal .day-away-section { padding-bottom: 10px; }
+.day-editor-modal .day-editor-meal { gap: 6px; }
+.day-editor-modal .meal-entry-input { min-height: 72px; padding: 8px 10px; line-height: 1.6; }
+.day-editor-modal .modal-footer { flex: none; padding-top: 12px; }
 
 .mobile-meal.meal-figma .eyebrow { color: #70429d; }
 @media (min-width: 900px) {

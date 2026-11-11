@@ -110,7 +110,7 @@ export function MealEntryEditor({ value, recipes, label, autoFocus, onChange }: 
     window.getSelection()?.removeAllRanges(); window.getSelection()?.addRange(range);
     emit("home"); setMatches([]); replacement.current = null;
   }
-  return <div className="meal-entry-editor" onBlur={(event) => {
+  return <div className="meal-entry-editor" data-suggestions-placement={value.type === "Dinner" ? "above" : "below"} onBlur={(event) => {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) { setMatches([]); replacement.current = null; }
   }}>
     <div ref={editor} className="meal-entry-input" contentEditable suppressContentEditableWarning
@@ -162,8 +162,8 @@ export function MealEntryEditor({ value, recipes, label, autoFocus, onChange }: 
         </button>
       </li>)}
     </ul>}
-    <p id={`${id}-hint`} className="recipe-picker-status" role="status" aria-live="polite">
-      {expanded ? `${matches.length} ${matches.length === 1 ? "match" : "matches"}. Select or press Enter / Tab to add a recipe.` : "Recipe suggestions appear as you type (3+ characters)."}
+    <p id={`${id}-hint`} className="sr-only" role="status" aria-live="polite">
+      {expanded ? `${matches.length} ${matches.length === 1 ? "match" : "matches"}. Select or press Enter / Tab to add a recipe.` : ""}
     </p>
   </div>;
 }

@@ -151,19 +151,22 @@ function DayEditor({ date: initialDate, meals, recipes, initialDish, save, close
         close();
       }}>
         <div className="day-editor-body">
-        <label className="day-date-field">Date
-          <input type="date" required value={date} onChange={event => changeDate(event.target.value)} />
-        </label>
-        {hasExistingMeals && <p className="day-date-help">This date already has meals. Saving updates this day.</p>}
-        <div className="day-away-section">
-          {awayOnDate(awayEvents, date).length > 0 && <p className="section-help">You’re away on this date. Meal entries below are optional.</p>}
+        <div className="day-date-row">
+          <label className="day-date-field">Date
+            <input type="date" required value={date} onChange={event => changeDate(event.target.value)} />
+          </label>
+          <button type="button" className="secondary-button day-away-action" onClick={() => addAway(date)}>
+            <Plus size={16} aria-hidden="true" />Add vacation
+          </button>
+        </div>
+        {awayOnDate(awayEvents, date).length > 0 && <div className="day-away-section">
+          <p className="section-help">You’re away on this date. Meal entries below are optional.</p>
           {awayOnDate(awayEvents, date).map((event) => (
             <button key={event.id} type="button" className="away-summary" onClick={() => editAway(event)}>
               Away · {event.title} <span>Edit event</span>
             </button>
           ))}
-          <button type="button" className="text-button" onClick={() => addAway(date)}>Add away / vacation event</button>
-        </div>
+        </div>}
         {entries.map((entry, index) => (
           <section className="day-editor-meal" key={entry.id}>
             <div className="meal-editor-heading">
