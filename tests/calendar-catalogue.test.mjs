@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {applyOverlay,makeOverlay,fromCalendarMeal,fromAwayEvent} from '../src/calendar-catalogue.ts';
+import {applyOverlay,makeOverlay,fromCalendarMeal,toCalendarMeal,fromAwayEvent} from '../src/calendar-catalogue.ts';
 test('local overlays retain edits, additions and removals across a fresh server read',()=>{
  const remote=[{id:'a',note:'Server'},{id:'b',note:'Other'}];
  const next=[{id:'a',note:'Local edit'},{id:'new',note:'New'}];
@@ -8,6 +8,17 @@ test('local overlays retain edits, additions and removals across a fresh server 
  assert.deepEqual(applyOverlay(remote,changes),next);
  assert.deepEqual(applyOverlay([...remote,{id:'c',note:'New server meal'}],changes),[...next.slice(0,1),{id:'c',note:'New server meal'},next[1]]);
  assert.deepEqual(applyOverlay(remote,makeOverlay(remote,remote)),remote);
+});
+test('Vic cooked defaults false and survives meal database round trips in both states',()=>{
+ const row={id:'vic',date:'2026-11-11',type:'Dinner',setting:'home',dishes:[],note:'',content:null};
+ assert.equal(fromCalendarMeal(row).vicCooked,false);
+ assert.equal(toCalendarMeal(fromCalendarMeal(row)).vic_cooked,false);
+ for (const value of [true,false]) {
+  const meal=fromCalendarMeal({...row,vic_cooked:value});
+  assert.equal(meal.vicCooked,value);
+  assert.equal(toCalendarMeal(meal).vic_cooked,value);
+  assert.equal('vic_cooked' in meal,false);
+ }
 });
 test('database calendar dates and ordered content retain their local-date shape',()=>{
  const row={id:'meal',date:'2025-03-09',type:'Lunch',setting:'out',dishes:[],note:'Restaurant',content:null};

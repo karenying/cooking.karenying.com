@@ -1,10 +1,10 @@
 import type { AwayEvent, Meal, Recipe } from "./data";
 
-export type DayKind = "cooked" | "out" | "mix" | "away";
-export const dayKinds: { key: DayKind; label: string; color: string }[] = [
-  { key: "cooked", label: "Cooked", color: "#dce8f5" },
+export type MealKind = "cooked" | "out" | "figma" | "away";
+export const mealKinds: { key: MealKind; label: string; color: string }[] = [
+  { key: "cooked", label: "At home", color: "#dce8f5" },
   { key: "out", label: "Ate out", color: "#f4cdd2" },
-  { key: "mix", label: "Mix", color: "#e2dff1" },
+  { key: "figma", label: "Figma", color: "#ece0fa" },
   { key: "away", label: "Away", color: "#d6e7eb" },
 ];
 const nextDay = (key: string) => {
@@ -14,28 +14,46 @@ const nextDay = (key: string) => {
 };
 
 export function cookingAnalytics(meals: Meal[], events: AwayEvent[], recipes: Recipe[], start: string, end: string) {
-  const days = new Map<string, DayKind>();
-  const settings = new Map<string, Set<string>>();
+  const days = new Map<string, { home: boolean; away: boolean }>();
+  const slots = new Map<string, Map<Meal["type"], Set<NonNullable<Meal["setting"]>>>>();
   const inRange = (date: string) => date >= start && date <= end;
   for (const meal of meals) {
-    if (!inRange(meal.date) || meal.setting === "figma") continue;
-    const day = settings.get(meal.date) || new Set<string>();
-    day.add(meal.setting || "home");
-    settings.set(meal.date, day);
+    if (!inRange(meal.date)) continue;
+    const day = slots.get(meal.date) || new Map();
+    const settings = day.get(meal.type) || new Set();
+    settings.add(meal.setting || "home");
+    day.set(meal.type, settings);
+    slots.set(meal.date, day);
+    days.set(meal.date, { home: false, away: false });
   }
-  for (const [date, values] of settings) days.set(date, values.size > 1 ? "mix" : values.has("out") ? "out" : "cooked");
   for (const event of events) {
     const last = event.endDate < end ? event.endDate : end;
-    for (let date = event.startDate > start ? event.startDate : start; date <= last; date = nextDay(date)) days.set(date, "away");
+    for (let date = event.startDate > start ? event.startDate : start; date <= last; date = nextDay(date)) days.set(date, { home: false, away: true });
   }
-  const counts = { cooked: 0, out: 0, mix: 0, away: 0 };
-  for (const kind of days.values()) counts[kind]++;
-  const total = days.size;
-  const actual = { cooked: counts.cooked + counts.mix / 2, out: counts.out + counts.mix / 2, away: counts.away };
+  const counts = { cooked: 0, out: 0, figma: 0, away: 0 };
+  let homeDays = 0;
+  for (const [date, day] of days) {
+    if (day.away) {
+      counts.away += 2;
+      continue;
+    }
+    for (const type of ["Lunch", "Dinner"] as const) {
+      const settings = slots.get(date)?.get(type) || new Set(["home"]);
+      // Multiple records in the same meal slot still represent one meal.
+      for (const setting of settings) {
+        counts[setting === "home" ? "cooked" : setting] += 1 / settings.size;
+        if (setting === "home") day.home = true;
+      }
+    }
+    if (day.home) homeDays++;
+  }
+  const total = days.size * 2;
+  const vicMeals = new Set<string>();
   const dishCounts = new Map<string, number>();
   const byId = new Map(recipes.map(recipe => [recipe.id, recipe]));
   for (const meal of meals) {
-    if (!inRange(meal.date) || (meal.setting && meal.setting !== "home") || days.get(meal.date) === "away") continue;
+    if (!inRange(meal.date) || (meal.setting && meal.setting !== "home") || days.get(meal.date)?.away) continue;
+    if (meal.vicCooked) vicMeals.add(`${meal.date}-${meal.type}`);
     for (const id of new Set(meal.dishes)) if (byId.has(id)) dishCounts.set(id, (dishCounts.get(id) || 0) + 1);
   }
   const dishes = [...dishCounts].map(([id, count]) => ({ recipe: byId.get(id)!, count })).sort((a, b) => b.count - a.count || a.recipe.name.localeCompare(b.recipe.name));
@@ -46,10 +64,16 @@ export function cookingAnalytics(meals: Meal[], events: AwayEvent[], recipes: Re
   }
   const cuisines = [...cuisineCounts].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   let longestStreak = 0, streak = 0, previous = "";
-  for (const [date, kind] of [...days].sort(([a], [b]) => a.localeCompare(b))) {
-    streak = kind === "cooked" || kind === "mix" ? (previous && nextDay(previous) === date ? streak : 0) + 1 : 0;
-    longestStreak = Math.max(streak, longestStreak);
+  let streakStart = "";
+  let longestStreakDates: { start: string; end: string } | null = null;
+  for (const [date, day] of [...days].sort(([a], [b]) => a.localeCompare(b))) {
+    streak = day.home ? (previous && nextDay(previous) === date ? streak : 0) + 1 : 0;
+    if (streak === 1) streakStart = date;
+    if (streak > longestStreak) {
+      longestStreak = streak;
+      longestStreakDates = { start: streakStart, end: date };
+    }
     previous = date;
   }
-  return { days, counts, total, actual, dishes, cuisines, longestStreak };
+  return { days, counts, total, homeDays, vicCooked: vicMeals.size, dishes, cuisines, longestStreak, longestStreakDates };
 }

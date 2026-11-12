@@ -24,6 +24,7 @@ export type Meal = {
   dishes: string[];
   note: string;
   setting?: "home" | "out" | "figma";
+  vicCooked?: boolean;
   content?: MealPart[];
 };
 export type AwayEvent = {

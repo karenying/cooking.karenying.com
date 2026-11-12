@@ -49,16 +49,9 @@ button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
-button:focus-visible,
-a:focus-visible {
-  outline: 3px solid #8a8a8a;
-  outline-offset: 4px;
-}
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--olive);
-  outline-offset: 2px;
+/* Keep focused controls visually consistent with their resting state. */
+:focus {
+  outline: none;
 }
 button {
   border: 0;
@@ -783,12 +776,6 @@ main {
   padding: 13px 0;
   font-size: 12px;
 }
-.search-field:focus-within {
-  border-color: var(--olive);
-}
-.search-field input:focus-visible {
-  outline: 0;
-}
 .large-search {
   flex: 1;
 }
@@ -1195,10 +1182,6 @@ main {
   position: absolute;
   opacity: 0;
   width: 20px;
-}
-.pick-dish:focus-within {
-  outline: 2px solid var(--olive);
-  outline-offset: -2px;
 }
 .pick-check {
   width: 18px;
@@ -2073,7 +2056,6 @@ h1, h2 { font-weight: 500; }
 .meal-editor-heading > span { font-weight: 500; }
 .meal-entry-input { width: 100%; min-height: 104px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 6px; background: white; font-size: 16px; line-height: 2; white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; }
 .meal-entry-input:empty::before { content: attr(data-placeholder); color: #838383; pointer-events: none; }
-.meal-entry-input:focus-visible { outline: 2px solid #1a73e8; outline-offset: 1px; }
 .meal-recipe-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 2px 4px 2px 9px; margin: 1px 2px; border-radius: 5px; background: #e8f0fe; color: #174ea6; font-size: 13px; line-height: 1.5; vertical-align: middle; white-space: normal; }
 .meal-recipe-chip > span { min-width: 0; overflow-wrap: anywhere; }
 .meal-recipe-chip button { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 30px; min-height: 30px; padding: 0; background: transparent; color: #174ea6; border-radius: 4px; }

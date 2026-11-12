@@ -7,7 +7,7 @@ button { padding: 8px 12px; border: 1px solid #bcbcb5; border-radius: 4px; backg
 button:hover { background: #efefeb; }
 button:disabled { cursor: default; opacity: .45; }
 button.primary { background: #343f32; color: white; border-color: #343f32; }
-button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid #456a91; outline-offset: 2px; }
+:focus { outline: none; }
 h1 { margin: 6px 0 10px; font-size: 28px; }
 h2 { margin: 0 0 12px; font-size: 19px; }
 h3 { margin: 12px 0 8px; font-size: 15px; }

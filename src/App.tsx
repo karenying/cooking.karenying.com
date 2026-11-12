@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
 import {
   ArrowLeft,
@@ -21,13 +21,14 @@ import {
   TODAY,
 } from "./data";
 import type { AwayEvent, Meal, Recipe } from "./data";
-import { awayOnDate, mealSettingClass, mealSettingLabel, validDateRange } from "./calendar";
+import { awayOnDate, mealSettingClass, validDateRange } from "./calendar";
 import type { CookbookStore } from "./Connection";
 import { AuthGate, SignOutButton } from "./AuthGate";
 import { useRecipeCatalogue } from "./useRecipeCatalogue";
 import { useCalendarCatalogue } from "./useCalendarCatalogue";
 import { resolveMealRecipeIds, legacyRecipeIds } from "./recipe-catalogue";
 import { MealEntryEditor } from "./MealEntryEditor";
+import { mealParts } from "./meal-content";
 import { RecipeEditDialog } from "./RecipeEditDialog";
 import { AnalyticsPage } from "./AnalyticsPage";
 import { cookingAnalytics } from "./analytics";
@@ -126,7 +127,7 @@ function DayEditor({ date: initialDate, meals, recipes, initialDish, save, close
     return (["Lunch", "Dinner"] as const).flatMap((type) => {
       const matches = existing.filter((meal) => meal.type === type);
       const rows = matches.length ? matches : [{ id: crypto.randomUUID(), date, type, dishes: [], note: "" }];
-      return rows.map((row, i) => ({ ...row, setting: row.setting || "home",
+      return rows.map((row, i) => ({ ...row, setting: row.setting || "home", vicCooked: row.vicCooked ?? false,
         ...(initialDish && date === initialDate && type === "Dinner" && i === 0 ? { dishes: [...new Set([...row.dishes, initialDish])] } : {}) }));
     });
   }
@@ -146,7 +147,7 @@ function DayEditor({ date: initialDate, meals, recipes, initialDish, save, close
       <form className="editor-form" onSubmit={(event) => {
         event.preventDefault();
         save(date, entries.map((entry) => ({ ...entry, note: entry.note.trim() }))
-          .filter((entry) => entry.note || entry.dishes.length || entry.setting === "out" || entry.setting === "figma"));
+          .filter((entry) => entry.note || entry.dishes.length || entry.vicCooked || entry.setting === "out" || entry.setting === "figma"));
         close();
       }}>
         <div className="day-editor-body">
@@ -170,12 +171,19 @@ function DayEditor({ date: initialDate, meals, recipes, initialDish, save, close
           <section className="day-editor-meal" key={entry.id}>
             <div className="meal-editor-heading">
               <span>{entry.type}</span>
+              <div className="meal-editor-options">
+              <label className="vic-cooked-toggle">
+                <input type="checkbox" role="switch" aria-label={`${entry.type} Vic cooked ${index + 1}`}
+                  checked={entry.vicCooked ?? false} onChange={event => update(entry.id, { vicCooked: event.target.checked })} />
+                <span>Vic cooked</span>
+              </label>
               <select aria-label={`${entry.type} setting ${index + 1}`} value={entry.setting || "home"}
                 onChange={(event) => update(entry.id, { setting: event.target.value as Meal["setting"] })}>
                 <option value="home">At home</option>
                 <option value="out">Eating out</option>
                 <option value="figma">Figma</option>
               </select>
+              </div>
             </div>
             <MealEntryEditor value={entry} recipes={recipes} label={`${entry.type} entry ${index + 1}`}
               autoFocus={index === 0} onChange={(change) => update(entry.id, change)} />
@@ -230,7 +238,7 @@ function AwayEditor({ initialDate, event, save, remove, close }: {
 
 function AwaySummary({ event, edit }: { event: AwayEvent; edit: () => void }) {
   return <button className="away-summary" onClick={edit}>
-    <strong>Away · {event.title}</strong>
+    <strong>{event.title}</strong>
     <span>{parseDate(event.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} – {parseDate(event.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
     {event.note && <span>{event.note}</span>}
     <span className="away-edit-label">Edit event</span>
@@ -364,12 +372,21 @@ function MealCalendarEvent({ meal, recipes, editMeal, mobile = false }: {
     <button className="meal-label"
       aria-label={`Edit ${meal.type.toLowerCase()} on ${prettyDate(meal.date)}`}
       onClick={() => editMeal(meal)}>{meal.type}</button>
-    <span className="meal-setting">{mealSettingLabel(meal)}</span>
-    {meal.dishes.map(id => {
+    {meal.setting === "figma" && <span className="meal-setting">Figma</span>}
+    {meal.content ? <div className="cell-meal-content">
+      {mealParts(meal).map((part, index) => {
+        if (part.type === "text") return part.text.trim() ? <span className="cell-note" key={index} role="button" tabIndex={0}
+          onClick={() => editMeal(meal)} onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editMeal(meal); }
+          }}>{part.text}</span> : part.text;
+        const dish = recipes.find(recipe => recipe.id === (legacyRecipeIds[part.id] || part.id));
+        return dish && <a href={`#/recipes/${dish.id}`} key={index}>{dish.name}</a>;
+      })}
+    </div> : <>{meal.dishes.map(id => {
       const dish = recipes.find(recipe => recipe.id === (legacyRecipeIds[id] || id));
       return dish && <a href={`#/recipes/${dish.id}`} key={id}>{dish.name}</a>;
     })}
-    {meal.note && <button className="cell-note" onClick={() => editMeal(meal)}>{meal.note}</button>}
+    {meal.note && <button className="cell-note" onClick={() => editMeal(meal)}>{meal.note}</button>}</>}
   </div>;
 }
 
@@ -395,6 +412,7 @@ function Calendar({
     return new Date(date.getFullYear(), date.getMonth(), 1);
   });
   const [selected, setSelected] = useState(TODAY);
+  const panelRef = useRef<HTMLElement>(null);
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
   const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
   const cellCount = Math.ceil((first.getDay() + last.getDate()) / 7) * 7;
@@ -406,11 +424,35 @@ function Calendar({
   const selectedMeals = meals
     .filter((m) => m.date === selected)
     .sort((a, b) => (a.type === b.type ? 0 : a.type === "Lunch" ? -1 : 1));
-  function moveMonth(offset: number) {
+  const moveMonth = useCallback((offset: number) => {
     const next = new Date(month.getFullYear(), month.getMonth() + offset, 1);
     setMonth(next);
     setSelected(dateKey(next));
-  }
+  }, [month]);
+  const goToToday = useCallback(() => {
+    const today = parseDate(TODAY);
+    setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+    setSelected(TODAY);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select, [role='textbox']"))) return;
+      if (document.querySelector("dialog[open], [role='dialog'][aria-modal='true']") || panelRef.current?.closest("fieldset[disabled]")) return;
+
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        moveMonth(event.key === "ArrowLeft" ? -1 : 1);
+      } else if (event.key.toLowerCase() === "t") {
+        event.preventDefault();
+        goToToday();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [moveMonth, goToToday]);
   const hasMeals = meals.some((m) =>
     m.date.startsWith(dateKey(month).slice(0, 7)),
   );
@@ -434,7 +476,7 @@ function Calendar({
         </button>
         </div>
       </header>
-      <section className="calendar-panel" aria-label="Meal calendar">
+      <section ref={panelRef} className="calendar-panel" aria-label="Meal calendar">
         <div className="calendar-toolbar">
           <div className="month-controls">
             <h2>
@@ -447,6 +489,8 @@ function Calendar({
               <button
                 className="icon-button"
                 aria-label="Previous month"
+                aria-keyshortcuts="ArrowLeft"
+                title="Previous month (←)"
                 onClick={() => moveMonth(-1)}
               >
                 <ChevronLeft size={18} />
@@ -454,6 +498,8 @@ function Calendar({
               <button
                 className="icon-button"
                 aria-label="Next month"
+                aria-keyshortcuts="ArrowRight"
+                title="Next month (→)"
                 onClick={() => moveMonth(1)}
               >
                 <ChevronRight size={18} />
@@ -461,11 +507,9 @@ function Calendar({
             </div>
             <button
               className="today-button"
-              onClick={() => {
-                const today = parseDate(TODAY);
-                setMonth(new Date(today.getFullYear(), today.getMonth(), 1));
-                setSelected(TODAY);
-              }}
+              aria-keyshortcuts="t"
+              title="Today (t)"
+              onClick={goToToday}
             >
               Today
             </button>
@@ -498,7 +542,7 @@ function Calendar({
                 key={key}
                 data-date={key}
                 onClick={(event) => {
-                  if (!(event.target as HTMLElement).closest("button, a")) { setSelected(key); addMeal(key); }
+                  if (!(event.target as HTMLElement).closest("button, a, [role='button']")) { setSelected(key); addMeal(key); }
                 }}
                 onKeyDown={(event) => {
                   if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
@@ -517,9 +561,6 @@ function Calendar({
                     onClick={() => setSelected(key)}
                   >
                     {day.getDate()}
-                    <span className="today-label">
-                      {key === TODAY && "Today"}
-                    </span>
                   </button>
                   <button
                     className="cell-add"
@@ -534,7 +575,7 @@ function Calendar({
                     className={`away-calendar-event ${event.startDate === key || day.getDay() === 0 ? "away-start" : ""} ${event.endDate === key || day.getDay() === 6 ? "away-end" : ""}`}
                     aria-label={`Edit away event ${event.title}, ${prettyDate(event.startDate)} to ${prettyDate(event.endDate)}`}
                     onClick={() => { setSelected(key); editAway(event); }}>
-                    <span className="away-desktop-title">Away · {event.title}</span><span className="away-mobile-title">Away</span>
+                    <span className="away-desktop-title">{event.title}</span><span className="away-mobile-title">{event.title}</span>
                   </button>)}
                 </div>
                 <div className="cell-meals">
@@ -728,13 +769,13 @@ function RecipeIndex({
         {filtered.map((recipe) => (
           <article className="recipe-card" key={recipe.id}>
             <div className="recipe-card-body">
-              <span className="eyebrow">
-                {recipe.cuisine} <span className="tag-dot">·</span>{" "}
-                {recipe.category}
-              </span>
               <h2>
                 <a href={`#/recipes/${recipe.id}`}>{recipe.name}</a>
               </h2>
+              <span className="eyebrow">
+                {recipe.category} <span className="tag-dot">·</span>{" "}
+                {recipe.cuisine}
+              </span>
 
             </div>
           </article>
@@ -1014,7 +1055,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, catalogue, calendar, stora
         </button>
       </header>
       <aside className={`sidebar ${menuOpen ? "sidebar-open" : ""}`}>
-        <a className="journal-masthead" href="#/calendar"><span>At home.</span></a>
+        <a className="site-title sidebar-title" href="#/calendar">cooking.karenying.com</a>
         <nav aria-label="Main navigation">
           <a
             href="#/calendar"
@@ -1047,9 +1088,6 @@ function Cookbook({ store, awayEvents, setAwayEvents, catalogue, calendar, stora
         />
       )}
       <div className="workspace">
-        <div className="workspace-topbar">
-          <a className="site-title" href="#/calendar">cooking.karenying.com</a>
-        </div>
         <main id="main-content">
           {recipeSaved && <p role="status" className="recipe-save-notice">Recipe saved.</p>}
           {catalogue.error && <div className="storage-warning" role="alert">Recipes couldn’t load: {catalogue.error} <button className="text-button" onClick={catalogue.retry}>Retry recipes</button></div>}

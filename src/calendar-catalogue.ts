@@ -12,9 +12,14 @@ export function makeOverlay<T extends { id: string }>(remote: T[], next: T[]): O
   return { deleted: remote.filter(r => !ids.has(r.id)).map(r => r.id),
     upserts: Object.fromEntries(next.filter(r => JSON.stringify(r) !== JSON.stringify(original.get(r.id))).map(r => [r.id, r])) };
 }
-export type CalendarMealRow = Omit<Meal, "content"> & { content: Meal["content"] | null };
+export type CalendarMealRow = Omit<Meal, "content" | "vicCooked"> & { content: Meal["content"] | null; vic_cooked?: boolean };
 export function fromCalendarMeal(row: CalendarMealRow): Meal {
-  return { ...row, content: row.content || undefined };
+  const { vic_cooked, ...meal } = row;
+  return { ...meal, content: row.content || undefined, vicCooked: vic_cooked ?? false };
+}
+export function toCalendarMeal(meal: Meal) {
+  return { date: meal.date, type: meal.type, setting: meal.setting || "home", dishes: meal.dishes,
+    note: meal.note, content: meal.content || null, vic_cooked: meal.vicCooked ?? false };
 }
 export function fromAwayEvent(row: {id:string;title:string;start_date:string;end_date:string;note:string}): AwayEvent {
   return { id: row.id, title: row.title, startDate: row.start_date, endDate: row.end_date, note: row.note };

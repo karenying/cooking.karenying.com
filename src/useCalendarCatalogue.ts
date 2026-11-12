@@ -1,14 +1,14 @@
 import type { Meal, AwayEvent } from "./data";
-import { fromCalendarMeal, fromAwayEvent } from "./calendar-catalogue";
+import { fromCalendarMeal, toCalendarMeal, fromAwayEvent } from "./calendar-catalogue";
 import { useCloudItems } from "./useCloudItems";
 function previous(key: "meals" | "events") {
   try { return JSON.parse(localStorage.getItem("at-home-calendar-overrides-v1") || "null")?.[key] || { upserts: {}, deleted: [] }; }
   catch { return { upserts: {}, deleted: [] }; }
 }
 const mealsConfig = {
-  table: "calendar_meals", columns: "id,date,type,setting,dishes,note,content",
-  decode: (row: any) => fromCalendarMeal({ id: row.id, date: row.date, type: row.type, setting: row.setting, dishes: row.dishes, note: row.note, content: row.content }),
-  encode: (meal: Meal) => ({ date: meal.date, type: meal.type, setting: meal.setting || "home", dishes: meal.dishes, note: meal.note, content: meal.content || null }),
+  table: "calendar_meals", columns: "id,date,type,setting,dishes,note,content,vic_cooked",
+  decode: (row: any) => fromCalendarMeal({ id: row.id, date: row.date, type: row.type, setting: row.setting, dishes: row.dishes, note: row.note, content: row.content, vic_cooked: row.vic_cooked }),
+  encode: toCalendarMeal,
   key: "at-home-calendar-cloud-meals-v1", initial: () => previous("meals"),
 };
 const eventsConfig = {
