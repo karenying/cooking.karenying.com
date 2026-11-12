@@ -1001,7 +1001,6 @@ function Cookbook({ store, awayEvents, setAwayEvents, catalogue, calendar, stora
   const [removedAway, setRemovedAway] = useState<AwayEvent | null>(null);
   const [addingRecipe, setAddingRecipe] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
-  const [recipeSaved, setRecipeSaved] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [undo, setUndo] = useState<Meal | null>(null);
   const isRecipes = route.startsWith("/recipes");
@@ -1089,7 +1088,6 @@ function Cookbook({ store, awayEvents, setAwayEvents, catalogue, calendar, stora
       )}
       <div className="workspace">
         <main id="main-content">
-          {recipeSaved && <p role="status" className="recipe-save-notice">Recipe saved.</p>}
           {catalogue.error && <div className="storage-warning" role="alert">Recipes couldn’t load: {catalogue.error} <button className="text-button" onClick={catalogue.retry}>Retry recipes</button></div>}
           {catalogue.loading && <p role="status">Loading recipes from Supabase…</p>}
           {calendar.error && <div className="storage-warning" role="alert">Calendar couldn’t load: {calendar.error} <button className="text-button" onClick={calendar.retry}>Retry calendar</button></div>}
@@ -1111,7 +1109,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, catalogue, calendar, stora
             <RecipePage
               key={recipe.id}
               editingDisabled={catalogue.loading || catalogue.pending || !!catalogue.error || !!catalogue.saveError}
-              edit={() => { setRecipeSaved(false); setEditingRecipe(structuredClone({ ...recipe, id: legacyRecipeIds[recipe.id] || recipe.id })); }}
+              edit={() => { setEditingRecipe(structuredClone({ ...recipe, id: legacyRecipeIds[recipe.id] || recipe.id })); }}
               recipe={{ ...recipe, id: legacyRecipeIds[recipe.id] || recipe.id }}
               meals={meals.map(meal => ({ ...meal, dishes: meal.dishes.map(id => legacyRecipeIds[id] || id) }))}
             />
@@ -1180,7 +1178,6 @@ function Cookbook({ store, awayEvents, setAwayEvents, catalogue, calendar, stora
           category: existingRecipeLabel(updated.category, recipes.map(r => r.category)),
           cuisine: existingRecipeLabel(updated.cuisine, recipes.map(r => r.cuisine)),
         });
-        setRecipeSaved(true);
       }} close={() => setEditingRecipe(null)} />}
       {addingRecipe && (
         <RecipeEditor

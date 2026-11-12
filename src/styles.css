@@ -2226,7 +2226,6 @@ h1, h2 { font-weight: 500; }
 .recipe-edit-group textarea { width: 100%; }
 .recipe-edit-group > button { align-self: flex-start; min-height: 44px; }
 .recipe-edit-dialog .modal-footer { gap: 12px; }
-.recipe-save-notice { margin-bottom: 20px; font-size: 14px; }
 
 /* Mobile scrolls the content pane, leaving navigation in normal layout.
    This avoids iOS Chrome's bottom-fixed toolbar/viewport anchoring defects. */
