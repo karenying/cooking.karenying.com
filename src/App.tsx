@@ -24,6 +24,8 @@ import type { AwayEvent, Meal, Recipe } from "./data";
 import { awayOnDate, mealSettingClass, validDateRange } from "./calendar";
 import type { CookbookStore } from "./Connection";
 import { AuthGate, SignOutButton } from "./AuthGate";
+import { PageLoading } from "./PageLoading";
+import { SavingToast } from "./SavingToast";
 import { useRecipeCatalogue } from "./useRecipeCatalogue";
 import { useCalendarCatalogue } from "./useCalendarCatalogue";
 import { resolveMealRecipeIds, legacyRecipeIds } from "./recipe-catalogue";
@@ -110,7 +112,8 @@ function Modal({
   );
 }
 
-function DayEditor({ date: initialDate, meals, recipes, initialDish, save, close, awayEvents, editAway, addAway }: {
+function DayEditor({ date: initialDate, meals, recipes, initialDish, save, close, awayEvents, editAway, addAway, saving }: {
+  saving: boolean;
   awayEvents: AwayEvent[];
   editAway: (event: AwayEvent) => void;
   addAway: (date: string) => void;
@@ -144,6 +147,7 @@ function DayEditor({ date: initialDate, meals, recipes, initialDish, save, close
   const hasExistingMeals = meals.some(meal => meal.date === date);
   return (
     <Modal title={hasExistingMeals ? "Edit day" : "Add day"} close={close} className="day-editor-modal">
+      {saving && <SavingToast />}
       <form className="editor-form" onSubmit={(event) => {
         event.preventDefault();
         save(date, entries.map((entry) => ({ ...entry, note: entry.note.trim() }))
@@ -1029,16 +1033,17 @@ function Cookbook({ store, awayEvents, setAwayEvents, catalogue, calendar, stora
   function saveMeal(meal: Meal) {
     setMeals((current) => [...current.filter((m) => m.id !== meal.id), meal]);
   }
+  if (catalogue.loading || calendar.loading) return <PageLoading />;
   return (
     <div className="cookbook-viewport">
-    {(catalogue.pending || calendar.pending) && <p className="cloud-message" role="status">Saving to Supabase…</p>}
+    {(catalogue.pending || calendar.pending) && !editingRecipe && !editor && <SavingToast />}
     {(catalogue.saveError || calendar.saveError) && <div className="storage-warning cloud-message" role="alert">
       <p>Changes haven’t saved: {catalogue.saveError || calendar.saveError}</p>
       <button className="text-button" onClick={() => { if (catalogue.saveError) void catalogue.retrySave(); if (calendar.saveError) calendar.retrySave(); }}>Retry save</button>
       <button className="text-button" onClick={() => { if (catalogue.saveError) catalogue.discardFailed(); if (calendar.saveError) calendar.discardFailed(); }}>Discard unsaved changes and reload</button>
     </div>}
     {(catalogue.unsyncedCount || calendar.unsyncedCount) > 0 && !catalogue.saveError && !calendar.saveError && !catalogue.pending && !calendar.pending && <div className="cloud-message">
-      Previous device changes are still local. <button className="text-button" onClick={() => { void catalogue.syncDrafts(); calendar.syncDrafts(); }}>Save device changes to Supabase</button>
+      Previous device changes are still local. <button className="text-button" onClick={() => { void catalogue.syncDrafts(); calendar.syncDrafts(); }}>Save device changes</button>
     </div>}
     <fieldset className="cookbook-controls" disabled={catalogue.loading || calendar.loading || catalogue.pending || calendar.pending || !!catalogue.saveError || !!calendar.saveError}>
     <div className="app-shell">
@@ -1089,9 +1094,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, catalogue, calendar, stora
       <div className="workspace">
         <main id="main-content">
           {catalogue.error && <div className="storage-warning" role="alert">Recipes couldn’t load: {catalogue.error} <button className="text-button" onClick={catalogue.retry}>Retry recipes</button></div>}
-          {catalogue.loading && <p role="status">Loading recipes from Supabase…</p>}
           {calendar.error && <div className="storage-warning" role="alert">Calendar couldn’t load: {calendar.error} <button className="text-button" onClick={calendar.retry}>Retry calendar</button></div>}
-          {calendar.loading && <p role="status">Loading calendar from Supabase…</p>}
           {storageFailed ? (
             <div className="storage-warning" role="alert">
               Browser storage is unavailable. Changes will only last for this
@@ -1157,6 +1160,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, catalogue, calendar, stora
       </nav>
       {editor && (
         <DayEditor key={editor.date} date={editor.date} meals={meals} recipes={recipes}
+          saving={catalogue.pending || calendar.pending}
           initialDish={editor.creating ? editor.meal?.dishes[0] : undefined}
           save={(date, entries) => setMeals((current) => [...current.filter((meal) => meal.date !== date), ...entries])}
           awayEvents={awayEvents}

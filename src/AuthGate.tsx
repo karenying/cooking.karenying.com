@@ -4,6 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { LogOut } from "lucide-react";
 import { cacheAccess, clearCachedAccess, hasCachedAccess } from "./auth-access-cache";
+import { PageLoading } from "./PageLoading";
 export const WriteSafety = createContext({ begin: () => {}, end: () => {} });
 const AccountActions = createContext<{ signOut: () => void; disabled: boolean; busy: boolean } | null>(null);
 export function SignOutButton() {
@@ -87,8 +88,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
     catch (error) { setError(error instanceof Error ? error.message : "Couldn’t sign out."); }
     finally { setBusy(false); }
   }
-  if (!ready) return <main className="connection-card" aria-busy="true" aria-label="Opening cookbook" />;
-  if (session && !allowed && (checking || access?.userId !== session.user.id)) return <main className="connection-card" role="status">Checking cookbook access…</main>;
+  if (!ready) return <PageLoading />;
+  if (session && !allowed && (checking || access?.userId !== session.user.id)) return <PageLoading />;
   if (session && allowed) return <>
     {error && <p className="storage-warning" role="alert">{error}</p>}
     <WriteSafety.Provider value={{ begin: () => setWrites(n => n + 1), end: () => setWrites(n => Math.max(0,n - 1)) }}><AccountActions.Provider value={{ signOut: () => void signOut(), disabled: busy || writes > 0, busy }}><div key={session.user.id}>{children}</div></AccountActions.Provider></WriteSafety.Provider>

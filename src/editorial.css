@@ -16,6 +16,49 @@
   color: var(--ink);
 }
 body { background: var(--paper); }
+.saving-toast {
+  position: fixed;
+  right: 24px;
+  bottom: calc(95px + var(--mobile-nav-safe-space));
+  z-index: 110;
+  margin: 0;
+  padding: 12px 18px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--white);
+  box-shadow: 0 4px 18px #20273326;
+  font-size: 13px;
+  line-height: 1.5;
+  pointer-events: none;
+}
+@media (min-width: 900px) {
+  .saving-toast { bottom: 24px; }
+}
+.page-loading {
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--paper);
+}
+.page-loading-spinner {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--line);
+  border-top-color: var(--olive);
+  border-radius: 50%;
+  animation: page-loading-spin .8s linear infinite;
+}
+@keyframes page-loading-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-loading-spinner { animation: none; }
+}
 h1, h2 { font-family: var(--serif); font-weight: 400; }
 ::selection { background: #dbe7f5; color: var(--ink); }
 .mobile-header, .workspace-topbar, .sidebar, .sidebar-open { background: var(--paper); }

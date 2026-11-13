@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { X } from "lucide-react";
 import type { Recipe } from "./data";
+import { SavingToast } from "./SavingToast";
 
 export function RecipeEditDialog({ recipe, save, close }: {
   recipe: Recipe;
@@ -47,6 +48,7 @@ export function RecipeEditDialog({ recipe, save, close }: {
       const bounds = event.currentTarget.getBoundingClientRect();
       if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dismiss();
     }}>
+    {busy && <SavingToast />}
     <div className="modal-head">
       <h2 id="edit-recipe-title">Edit recipe</h2>
       <button className="icon-button" aria-label="Close editor" disabled={busy} onClick={dismiss}><X size={21} /></button>
