@@ -1,4 +1,4 @@
-# At Home
+# cooking.karenying.com
 
 A personal cookbook and meal calendar built with React 19, TypeScript and Vite 7. Recipe pages are mobile first, while the desktop calendar keeps full meal details visible.
 
