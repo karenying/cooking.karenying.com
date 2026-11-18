@@ -26,6 +26,7 @@ import type { CookbookStore } from "./Connection";
 import { AuthGate, SignOutButton } from "./AuthGate";
 import { PageLoading } from "./PageLoading";
 import { SavingToast } from "./SavingToast";
+import { PullToRefresh } from "./PullToRefresh";
 import { useRecipeCatalogue } from "./useRecipeCatalogue";
 import { useCalendarCatalogue } from "./useCalendarCatalogue";
 import { resolveMealRecipeIds, legacyRecipeIds } from "./recipe-catalogue";
@@ -1091,7 +1092,9 @@ function Cookbook({ store, awayEvents, setAwayEvents, catalogue, calendar, stora
           onClick={() => setMenuOpen(false)}
         />
       )}
-      <div className="workspace">
+      <PullToRefresh route={route} disabled={menuOpen || !!editor || !!awayEditor || addingRecipe || !!editingRecipe
+        || catalogue.pending || calendar.pending || !!catalogue.saveError || !!calendar.saveError
+        || catalogue.unsyncedCount > 0 || calendar.unsyncedCount > 0}>
         <main id="main-content">
           {catalogue.error && <div className="storage-warning" role="alert">Recipes couldn’t load: {catalogue.error} <button className="text-button" onClick={catalogue.retry}>Retry recipes</button></div>}
           {calendar.error && <div className="storage-warning" role="alert">Calendar couldn’t load: {calendar.error} <button className="text-button" onClick={calendar.retry}>Retry calendar</button></div>}
@@ -1137,7 +1140,7 @@ function Cookbook({ store, awayEvents, setAwayEvents, catalogue, calendar, stora
             />
           )}
         </main>
-      </div>
+      </PullToRefresh>
       <nav className="bottom-nav" aria-label="Mobile navigation">
         <a href="#/calendar" className={!isRecipes && !isAnalytics ? "active" : ""}>
           <CalendarDays size={21} />

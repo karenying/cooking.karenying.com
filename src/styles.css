@@ -2229,7 +2229,11 @@ h1, h2 { font-weight: 500; }
 
 /* Mobile scrolls the content pane, leaving navigation in normal layout.
    This avoids iOS Chrome's bottom-fixed toolbar/viewport anchoring defects. */
+.pull-refresh-anchor { display: none; }
 @media (max-width: 899px) {
+  .pull-refresh-anchor { display: flex; position: sticky; top: 12px; height: 0; justify-content: center; z-index: 20; pointer-events: none; }
+  .pull-refresh-indicator { display: flex; align-items: center; gap: 8px; align-self: flex-start; padding: 10px 16px; border: 1px solid var(--line); border-radius: 24px; background: var(--paper); color: var(--olive-dark); box-shadow: 0 2px 8px #00000012; font-size: 13px; }
+  .pull-refresh-spinner { animation: pull-refresh-spin 1s linear infinite; }
   html:has(.app-shell), body:has(.app-shell) { overflow: hidden; }
   .cookbook-viewport { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
   .cookbook-viewport > .cloud-message { flex: none; }
@@ -2240,4 +2244,8 @@ h1, h2 { font-weight: 500; }
   .bottom-nav { position: static; flex: none; background: var(--white); backdrop-filter: none; }
   main { padding-bottom: 24px; }
   .undo-toast { bottom: calc(95px + var(--mobile-nav-safe-space)); }
+}
+@keyframes pull-refresh-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pull-refresh-spinner { animation: none; }
 }
